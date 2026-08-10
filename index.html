@@ -320,11 +320,11 @@ window.addEventListener("load", async () => {
 // ── CRM API ────────────────────────────────────────────────────────
 async function callFunction(params) {
   try {
-    const url = 'https://www.zohoapis.com.au/crm/v7/functions/hire_management_api/actions/execute?auth_type=apikey&zapikey=1003.41e4c5e9ba00bc30796986a232ba69d6.bfd8f262d71c4c497fe930ae12869a26';
+    const url = 'https://spring-frog-027e.jackstewartszoho3.workers.dev/';
     const resp = await fetch(url, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({arguments: JSON.stringify(params)})
+      body: JSON.stringify(params)
     });
     const data = await resp.json();
     console.log('Function response:', data);
