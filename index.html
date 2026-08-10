@@ -288,18 +288,55 @@ const ICONS = {
 const fmt = (n) => `$${Number(n).toFixed(2)}`;
 
 // ── Init ───────────────────────────────────────────────────────────
-window.addEventListener('load', async () => {
+window.addEventListener("load", async () => {
+  // Extract Deal ID from parent window URL (Zoho CRM URL contains record ID)
+  function getDealIdFromParent() {
+    try {
+      // Try parent window URL
+      const parentUrl = window.parent?.location?.href || document.referrer || '';
+      const match = parentUrl.match(/\/Potentials\/([0-9]+)|\/Deals\/([0-9]+)|tab\/Potentials\/([0-9]+)/);
+      if (match) return match[1] || match[2] || match[3];
+    } catch(e) {}
+    // Try URL params passed to iframe
+    const up = new URLSearchParams(window.location.search);
+    return up.get('EntityId') || up.get('recordId') || up.get('id') || null;
+  }
+
+  const _parentDealId = getDealIdFromParent();
+  console.log('Parent Deal ID:', _parentDealId);
+
   try {
     await ZOHO.embeddedApp.init();
     S.sdkReady = true;
-    const entity = await ZOHO.CRM.UI.Record.get();
-    S.dealId = entity?.data?.id || entity?.data?.Id;
-    S.dealName = entity?.data?.Deal_Name || entity?.data?.Name || 'This Deal';
-    console.log('SDK ready. Deal:', S.dealId, S.dealName);
+    console.log('SDK initialised');
+    try {
+      const entity = await ZOHO.CRM.UI.Record.get();
+      S.dealId = entity?.data?.id || entity?.data?.Id || _parentDealId;
+      S.dealName = entity?.data?.Deal_Name || entity?.data?.Name || 'This Deal';
+    } catch(e2) {
+      S.dealId = _parentDealId || 'DEMO';
+      S.dealName = 'This Deal';
+    }
   } catch(e) {
-    console.warn('SDK init failed, using demo mode:', e);
-    S.dealId = 'DEMO';
-    S.dealName = 'Demo Deal';
+    console.warn('SDK init failed, trying direct API:', e);
+    // Even if embeddedApp.init fails, ZOHO.CRM.API sometimes still works
+    S.sdkReady = true;
+    S.dealId = _parentDealId || 'DEMO';
+    if (_parentDealId) {
+      try {
+        const r = await ZOHO.CRM.API.getRecord({Entity:'Deals', RecordID: _parentDealId});
+        S.dealName = r?.data?.[0]?.Deal_Name || 'This Deal';
+        console.log('Got deal via direct API:', S.dealName);
+      } catch(e2) {
+        console.warn('Direct API also failed:', e2);
+        S.sdkReady = false;
+        S.dealName = 'This Deal';
+      }
+    } else {
+      S.sdkReady = false;
+      S.dealId = 'DEMO';
+      S.dealName = 'Demo Deal';
+    }
   }
   document.getElementById('dealBadge').textContent = S.dealName;
   loadProducts();
@@ -308,12 +345,12 @@ window.addEventListener('load', async () => {
 
 // ── CRM API ────────────────────────────────────────────────────────
 async function crmGetAll(entity) {
-  if (!S.sdkReady) return mockData(entity);
   try {
     const resp = await ZOHO.CRM.API.getAllRecords({
       Entity: entity, per_page: 200, sort_by: 'id', sort_order: 'asc'
     });
-    return resp?.data || [];
+    if (resp?.data?.length) return resp.data;
+    return mockData(entity);
   } catch(e) {
     console.warn('crmGetAll failed for', entity, e);
     return mockData(entity);
@@ -321,10 +358,6 @@ async function crmGetAll(entity) {
 }
 
 async function crmCreate(entity, data) {
-  if (!S.sdkReady) {
-    console.log('Demo mode - would create:', entity, data);
-    return {data:[{code:'SUCCESS',details:{id:'DEMO_'+Date.now()}}]};
-  }
   try {
     const resp = await ZOHO.CRM.API.insertRecord({
       Entity: entity,
@@ -340,7 +373,6 @@ async function crmCreate(entity, data) {
 }
 
 async function crmUpdate(entity, id, data) {
-  if (!S.sdkReady) return null;
   try {
     return await ZOHO.CRM.API.updateRecord({
       Entity: entity,
