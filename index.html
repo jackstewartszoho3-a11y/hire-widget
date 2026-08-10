@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hire Availability</title>
+<script src="https://live.zwidgets.com/js-sdk/1.2/ZohoEmbededAppSDK.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -116,6 +117,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 @keyframes spin { to { transform: rotate(360deg); } }
 hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 .note { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.sdk-status { font-size: 10px; opacity: 0.5; margin-left: 8px; }
 </style>
 </head>
 <body>
@@ -242,7 +244,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
       </div>
       <div>
         <div class="quote-panel">
-          <div class="quote-title">💷 Hire Quote</div>
+          <div class="quote-title">🇦🇺 Hire Quote (AUD)</div>
           <div id="quoteLines"></div>
         </div>
         <div class="card">
@@ -267,9 +269,8 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 </div>
 
 <script>
-// ── State ──────────────────────────────────────────────────────────
 const S = {
-  dealId: null, dealName: 'This Deal',
+  dealId: null, dealName: 'This Deal', sdkReady: false,
   products: [], selectedProd: null,
   bookings: [], dealBookings: [], rates: [],
   startDate: null, endDate: null,
@@ -284,21 +285,21 @@ const ICONS = {
   'Hospital Bed':'🛏️','Walking Aid':'🚶','Stair Lift':'🪜','Other':'⚕️'
 };
 
+const fmt = (n) => `$${Number(n).toFixed(2)}`;
+
 // ── Init ───────────────────────────────────────────────────────────
 window.addEventListener('load', async () => {
-  // Try ZOHO SDK
   try {
-    if (typeof ZOHO !== 'undefined' && ZOHO.embeddedApp) {
-      await ZOHO.embeddedApp.init();
-      const entity = await ZOHO.CRM.UI.Record.get();
-      S.dealId = entity?.data?.id || entity?.data?.Id || 'DEMO';
-      S.dealName = entity?.data?.Deal_Name || entity?.data?.Name || 'This Deal';
-    } else {
-      throw new Error('SDK not available');
-    }
+    await ZOHO.embeddedApp.init();
+    S.sdkReady = true;
+    const entity = await ZOHO.CRM.UI.Record.get();
+    S.dealId = entity?.data?.id || entity?.data?.Id;
+    S.dealName = entity?.data?.Deal_Name || entity?.data?.Name || 'This Deal';
+    console.log('SDK ready. Deal:', S.dealId, S.dealName);
   } catch(e) {
+    console.warn('SDK init failed, using demo mode:', e);
     S.dealId = 'DEMO';
-    S.dealName = 'Earnest Wright — Post-Surgery Hire';
+    S.dealName = 'Demo Deal';
   }
   document.getElementById('dealBadge').textContent = S.dealName;
   loadProducts();
@@ -306,52 +307,63 @@ window.addEventListener('load', async () => {
 });
 
 // ── CRM API ────────────────────────────────────────────────────────
-async function crmGetAll(entity, fields) {
+async function crmGetAll(entity) {
+  if (!S.sdkReady) return mockData(entity);
   try {
-    if (typeof ZOHO === 'undefined') throw new Error('no sdk');
-    const resp = await ZOHO.CRM.API.getAllRecords({Entity: entity, per_page: 200, sort_by: 'id', sort_order: 'asc'});
+    const resp = await ZOHO.CRM.API.getAllRecords({
+      Entity: entity, per_page: 200, sort_by: 'id', sort_order: 'asc'
+    });
     return resp?.data || [];
-  } catch(e) { return mockData(entity); }
+  } catch(e) {
+    console.warn('crmGetAll failed for', entity, e);
+    return mockData(entity);
+  }
 }
 
 async function crmCreate(entity, data) {
+  if (!S.sdkReady) {
+    console.log('Demo mode - would create:', entity, data);
+    return {data:[{code:'SUCCESS',details:{id:'DEMO_'+Date.now()}}]};
+  }
   try {
-    if (typeof ZOHO === 'undefined') throw new Error('no sdk');
-    return await ZOHO.CRM.API.insertRecord({Entity: entity, APIData: data, Trigger: []});
-  } catch(e) { return {data:[{code:'SUCCESS',details:{id:'MOCK_'+Date.now()}}]}; }
+    const resp = await ZOHO.CRM.API.insertRecord({
+      Entity: entity,
+      APIData: data,
+      Trigger: []
+    });
+    console.log('Created record:', resp);
+    return resp;
+  } catch(e) {
+    console.error('crmCreate failed:', e);
+    return null;
+  }
 }
 
 async function crmUpdate(entity, id, data) {
+  if (!S.sdkReady) return null;
   try {
-    if (typeof ZOHO === 'undefined') throw new Error('no sdk');
-    return await ZOHO.CRM.API.updateRecord({Entity: entity, APIData: {...data, id}, Trigger: []});
+    return await ZOHO.CRM.API.updateRecord({
+      Entity: entity,
+      APIData: {...data, id},
+      Trigger: []
+    });
   } catch(e) { return null; }
 }
 
 // ── Mock Data ──────────────────────────────────────────────────────
 function mockData(entity) {
   if (entity === 'Products') return [
-    {id:'P1',Product_Name:'Manual Wheelchair',Equipment_Category__s:'Wheelchair - Manual',Daily_Rate__s:25,Weekly_Rate__s:140,Monthly_Rate__s:450,Min_Hire_Days__s:3,Deposit_Required__s:150,Delivery_Available__s:true,Delivery_Fee__s:35,Hire_Status__s:'Available',Hire_Enabled__s:true},
-    {id:'P2',Product_Name:'Power Wheelchair',Equipment_Category__s:'Wheelchair - Power',Daily_Rate__s:65,Weekly_Rate__s:380,Monthly_Rate__s:1200,Min_Hire_Days__s:7,Deposit_Required__s:500,Delivery_Available__s:true,Delivery_Fee__s:55,Hire_Status__s:'Available',Hire_Enabled__s:true},
-    {id:'P3',Product_Name:'Mobility Scooter',Equipment_Category__s:'Mobility Scooter',Daily_Rate__s:45,Weekly_Rate__s:260,Monthly_Rate__s:850,Min_Hire_Days__s:3,Deposit_Required__s:300,Delivery_Available__s:true,Delivery_Fee__s:45,Hire_Status__s:'Available',Hire_Enabled__s:true},
-    {id:'P4',Product_Name:'Ceiling Track Hoist',Equipment_Category__s:'Hoist - Ceiling Track',Daily_Rate__s:55,Weekly_Rate__s:320,Monthly_Rate__s:1000,Min_Hire_Days__s:14,Deposit_Required__s:400,Delivery_Available__s:true,Delivery_Fee__s:95,Hire_Status__s:'Available',Hire_Enabled__s:true},
-    {id:'P5',Product_Name:'Portable Shower Chair',Equipment_Category__s:'Shower Chair',Daily_Rate__s:12,Weekly_Rate__s:65,Monthly_Rate__s:200,Min_Hire_Days__s:3,Deposit_Required__s:75,Delivery_Available__s:true,Delivery_Fee__s:20,Hire_Status__s:'Available',Hire_Enabled__s:true},
-    {id:'P6',Product_Name:'Hospital Bed - Electric',Equipment_Category__s:'Hospital Bed',Daily_Rate__s:50,Weekly_Rate__s:290,Monthly_Rate__s:950,Min_Hire_Days__s:14,Deposit_Required__s:350,Delivery_Available__s:true,Delivery_Fee__s:85,Hire_Status__s:'Hired Out',Hire_Enabled__s:true},
-    {id:'P7',Product_Name:'Rollator Walking Frame',Equipment_Category__s:'Walking Aid',Daily_Rate__s:10,Weekly_Rate__s:55,Monthly_Rate__s:165,Min_Hire_Days__s:3,Deposit_Required__s:60,Delivery_Available__s:true,Delivery_Fee__s:20,Hire_Status__s:'Available',Hire_Enabled__s:true},
-    {id:'P8',Product_Name:'Portable Stair Lift',Equipment_Category__s:'Stair Lift',Daily_Rate__s:85,Weekly_Rate__s:490,Monthly_Rate__s:1600,Min_Hire_Days__s:14,Deposit_Required__s:800,Delivery_Available__s:true,Delivery_Fee__s:120,Hire_Status__s:'Available',Hire_Enabled__s:true},
+    {id:'P1',Product_Name:'Manual Wheelchair',Equipment_Category__s:'Wheelchair - Manual',Daily_Rate__s:45,Weekly_Rate__s:220,Monthly_Rate__s:750,Min_Hire_Days__s:3,Deposit_Required__s:200,Delivery_Available__s:true,Delivery_Fee__s:55,Hire_Status__s:'Available',Hire_Enabled__s:true},
+    {id:'P2',Product_Name:'Power Wheelchair',Equipment_Category__s:'Wheelchair - Power',Daily_Rate__s:95,Weekly_Rate__s:560,Monthly_Rate__s:1800,Min_Hire_Days__s:7,Deposit_Required__s:750,Delivery_Available__s:true,Delivery_Fee__s:85,Hire_Status__s:'Available',Hire_Enabled__s:true},
+    {id:'P3',Product_Name:'Mobility Scooter',Equipment_Category__s:'Mobility Scooter',Daily_Rate__s:65,Weekly_Rate__s:390,Monthly_Rate__s:1300,Min_Hire_Days__s:3,Deposit_Required__s:450,Delivery_Available__s:true,Delivery_Fee__s:70,Hire_Status__s:'Available',Hire_Enabled__s:true},
+    {id:'P4',Product_Name:'Ceiling Track Hoist',Equipment_Category__s:'Hoist - Ceiling Track',Daily_Rate__s:80,Weekly_Rate__s:480,Monthly_Rate__s:1500,Min_Hire_Days__s:14,Deposit_Required__s:600,Delivery_Available__s:true,Delivery_Fee__s:140,Hire_Status__s:'Available',Hire_Enabled__s:true},
+    {id:'P5',Product_Name:'Portable Shower Chair',Equipment_Category__s:'Shower Chair',Daily_Rate__s:18,Weekly_Rate__s:95,Monthly_Rate__s:300,Min_Hire_Days__s:3,Deposit_Required__s:110,Delivery_Available__s:true,Delivery_Fee__s:30,Hire_Status__s:'Available',Hire_Enabled__s:true},
+    {id:'P6',Product_Name:'Hospital Bed - Electric',Equipment_Category__s:'Hospital Bed',Daily_Rate__s:75,Weekly_Rate__s:430,Monthly_Rate__s:1400,Min_Hire_Days__s:14,Deposit_Required__s:520,Delivery_Available__s:true,Delivery_Fee__s:130,Hire_Status__s:'Hired Out',Hire_Enabled__s:true},
+    {id:'P7',Product_Name:'Rollator Walking Frame',Equipment_Category__s:'Walking Aid',Daily_Rate__s:15,Weekly_Rate__s:80,Monthly_Rate__s:245,Min_Hire_Days__s:3,Deposit_Required__s:90,Delivery_Available__s:true,Delivery_Fee__s:30,Hire_Status__s:'Available',Hire_Enabled__s:true},
+    {id:'P8',Product_Name:'Portable Stair Lift',Equipment_Category__s:'Stair Lift',Daily_Rate__s:125,Weekly_Rate__s:730,Monthly_Rate__s:2400,Min_Hire_Days__s:14,Deposit_Required__s:1200,Delivery_Available__s:true,Delivery_Fee__s:180,Hire_Status__s:'Available',Hire_Enabled__s:true},
   ];
-  if (entity === 'Hire_Bookings') return [
-    {id:'B1',Product__s:{id:'P1'},Hire_Start_Date__s:'2026-08-01',Hire_End_Date__s:'2026-08-21',Booking_Status__s:'Confirmed',Deal__s:{id:S.dealId},Booking_Name__s:'Manual Wheelchair | Demo | 2026-08-01',Total_Hire_Cost__s:560,Hire_Duration_Days__s:20},
-    {id:'B2',Product__s:{id:'P3'},Hire_Start_Date__s:'2026-08-15',Hire_End_Date__s:'2026-08-29',Booking_Status__s:'On Hold',Deal__s:{id:S.dealId},Booking_Name__s:'Mobility Scooter | Demo | 2026-08-15',Total_Hire_Cost__s:520,Hire_Duration_Days__s:14},
-  ];
-  if (entity === 'Hire_Rates') return [
-    {id:'R1',Product__s:{id:'P1'},Rate_Type__s:'Daily',Min_Days__s:1,Max_Days__s:6,Rate_Amount__s:25,Rate_Per__s:'Per Day'},
-    {id:'R2',Product__s:{id:'P1'},Rate_Type__s:'Weekly',Min_Days__s:7,Max_Days__s:27,Rate_Amount__s:140,Rate_Per__s:'Per Week'},
-    {id:'R3',Product__s:{id:'P1'},Rate_Type__s:'Monthly',Min_Days__s:28,Max_Days__s:180,Rate_Amount__s:450,Rate_Per__s:'Per Month'},
-    {id:'R4',Product__s:{id:'P2'},Rate_Type__s:'Weekly',Min_Days__s:7,Max_Days__s:27,Rate_Amount__s:380,Rate_Per__s:'Per Week'},
-    {id:'R5',Product__s:{id:'P3'},Rate_Type__s:'Daily',Min_Days__s:1,Max_Days__s:6,Rate_Amount__s:45,Rate_Per__s:'Per Day'},
-    {id:'R6',Product__s:{id:'P3'},Rate_Type__s:'Weekly',Min_Days__s:7,Max_Days__s:27,Rate_Amount__s:260,Rate_Per__s:'Per Week'},
-  ];
+  if (entity === 'Hire_Bookings') return [];
+  if (entity === 'Hire_Rates') return [];
   return [];
 }
 
@@ -392,7 +404,7 @@ function renderProducts() {
       <div class="product-icon">${icon}</div>
       <div class="product-name">${p.Product_Name}</div>
       <div class="product-cat">${p.Equipment_Category__s||''}</div>
-      <div class="product-rate">from £${p.Daily_Rate__s||0}/day</div>
+      <div class="product-rate">from ${fmt(p.Daily_Rate__s||0)}/day</div>
       <div style="margin-top:6px;font-size:11px;color:var(--muted)"><span class="status-dot ${dotCls}"></span>${avail}</div>
     </div>`;
   }).join('');
@@ -478,7 +490,7 @@ function onDatesChange(){
   S.delivery = document.getElementById('delivToggle').checked;
   document.getElementById('delivAddrWrap').style.display = S.delivery?'block':'none';
   const p = S.selectedProd;
-  document.getElementById('delivFeeLabel').textContent = S.delivery&&p?`+£${p.Delivery_Fee__s}`:'';
+  document.getElementById('delivFeeLabel').textContent = S.delivery&&p?`+${fmt(p.Delivery_Fee__s)}`:'';
   const min = p?.Min_Hire_Days__s||1;
   document.getElementById('minNote').textContent = `⚠ Minimum hire: ${min} day${min!==1?'s':''}`;
   if(S.startDate&&S.endDate){
@@ -499,17 +511,17 @@ function calcQuote(){
   const p = S.selectedProd;
   if(!p||!S.startDate||!S.endDate) return;
   const days = daysBetween(S.startDate,S.endDate);
-  let hireCost=0, tier='', rateDesc='';
+  let hireCost=0, tier='';
   const sorted = [...S.rates].sort((a,b)=>(b.Min_Days__s||0)-(a.Min_Days__s||0));
   const matched = sorted.find(r=>days>=(r.Min_Days__s||0));
   if(matched){
-    if(matched.Rate_Type__s==='Monthly'){const m=Math.ceil(days/30);hireCost=m*matched.Rate_Amount__s;tier=`${m} month${m!==1?'s':''} @ £${matched.Rate_Amount__s}/mo`;}
-    else if(matched.Rate_Type__s==='Weekly'){const w=Math.ceil(days/7);hireCost=w*matched.Rate_Amount__s;tier=`${w} week${w!==1?'s':''} @ £${matched.Rate_Amount__s}/wk`;}
-    else{hireCost=days*matched.Rate_Amount__s;tier=`${days} days @ £${matched.Rate_Amount__s}/day`;}
+    if(matched.Rate_Type__s==='Monthly'){const m=Math.ceil(days/30);hireCost=m*matched.Rate_Amount__s;tier=`${m} month${m!==1?'s':''} @ ${fmt(matched.Rate_Amount__s)}/mo`;}
+    else if(matched.Rate_Type__s==='Weekly'){const w=Math.ceil(days/7);hireCost=w*matched.Rate_Amount__s;tier=`${w} week${w!==1?'s':''} @ ${fmt(matched.Rate_Amount__s)}/wk`;}
+    else{hireCost=days*matched.Rate_Amount__s;tier=`${days} days @ ${fmt(matched.Rate_Amount__s)}/day`;}
   } else {
-    if(days>=28&&p.Monthly_Rate__s){const m=Math.ceil(days/30);hireCost=m*p.Monthly_Rate__s;tier=`${m} month${m!==1?'s':''} @ £${p.Monthly_Rate__s}/mo`;}
-    else if(days>=7&&p.Weekly_Rate__s){const w=Math.ceil(days/7);hireCost=w*p.Weekly_Rate__s;tier=`${w} week${w!==1?'s':''} @ £${p.Weekly_Rate__s}/wk`;}
-    else{hireCost=days*(p.Daily_Rate__s||0);tier=`${days} days @ £${p.Daily_Rate__s}/day`;}
+    if(days>=28&&p.Monthly_Rate__s){const m=Math.ceil(days/30);hireCost=m*p.Monthly_Rate__s;tier=`${m} month${m!==1?'s':''} @ ${fmt(p.Monthly_Rate__s)}/mo`;}
+    else if(days>=7&&p.Weekly_Rate__s){const w=Math.ceil(days/7);hireCost=w*p.Weekly_Rate__s;tier=`${w} week${w!==1?'s':''} @ ${fmt(p.Weekly_Rate__s)}/wk`;}
+    else{hireCost=days*(p.Daily_Rate__s||0);tier=`${days} days @ ${fmt(p.Daily_Rate__s)}/day`;}
   }
   const deliv = S.delivery?(p.Delivery_Fee__s||0):0;
   const dep = p.Deposit_Required__s||0;
@@ -535,13 +547,13 @@ function goStep(n){
 function renderQuote(){
   const q=S.quote;if(!q)return;
   document.getElementById('quoteLines').innerHTML=`
-    <div class="quote-row"><span class="quote-label">Equipment hire</span><div><div class="quote-total">£${q.hireCost.toFixed(2)}</div><div class="quote-tier">${q.tier}</div></div></div>
-    ${q.delivFee?`<div class="quote-row"><span class="quote-label">Delivery &amp; collection</span><span>£${q.delivFee.toFixed(2)}</span></div>`:''}
-    <div class="quote-row"><span class="quote-label">Refundable deposit</span><span>£${q.deposit.toFixed(2)}</span></div>
+    <div class="quote-row"><span class="quote-label">Equipment hire</span><div><div class="quote-total">${fmt(q.hireCost)}</div><div class="quote-tier">${q.tier}</div></div></div>
+    ${q.delivFee?`<div class="quote-row"><span class="quote-label">Delivery &amp; collection</span><span>${fmt(q.delivFee)}</span></div>`:''}
+    <div class="quote-row"><span class="quote-label">Refundable deposit</span><span>${fmt(q.deposit)}</span></div>
     <div class="quote-row" style="margin-top:8px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.3)">
-      <span style="font-weight:600">Total hire cost</span><span class="quote-total">£${q.total.toFixed(2)}</span>
+      <span style="font-weight:600">Total hire cost</span><span class="quote-total">${fmt(q.total)}</span>
     </div>
-    <div class="quote-row"><span style="opacity:0.6;font-size:11px">Total inc. deposit</span><span style="opacity:0.7;font-size:12px">£${(q.total+q.deposit).toFixed(2)}</span></div>`;
+    <div class="quote-row"><span style="opacity:0.6;font-size:11px">Total inc. deposit</span><span style="opacity:0.7;font-size:12px">${fmt(q.total+q.deposit)}</span></div>`;
 }
 
 function renderSummary(){
@@ -551,7 +563,7 @@ function renderSummary(){
     <div style="margin-bottom:12px;font-size:14px;font-weight:600;color:var(--navy)">${icon} ${p?.Product_Name}</div>
     <div><strong>Period:</strong> ${S.startDate} → ${S.endDate} (${q?.days} days)</div>
     <div><strong>Category:</strong> ${p?.Equipment_Category__s||'—'}</div>
-    <div><strong>Delivery:</strong> ${S.delivery?`Yes — £${p?.Delivery_Fee__s}`:'No — client collection'}</div>
+    <div><strong>Delivery:</strong> ${S.delivery?`Yes — ${fmt(p?.Delivery_Fee__s)}`:'No — client collection'}</div>
     ${document.getElementById('delivAddr').value?`<div><strong>Deliver to:</strong> ${document.getElementById('delivAddr').value}</div>`:''}
     ${document.getElementById('specReqs').value?`<div><strong>Requirements:</strong> ${document.getElementById('specReqs').value}</div>`:''}`;
 }
@@ -565,32 +577,50 @@ async function placeBooking(status){
   const holdExpiry=status==='On Hold'?toDS(new Date(Date.now()+3*86400000)):null;
   const name=`${p.Product_Name} | ${S.dealName} | ${S.startDate}`;
   const rec={
-    Name:name,Booking_Name__s:name,
-    Product__s:{id:p.id},Deal__s:{id:S.dealId},
-    Hire_Start_Date__s:S.startDate,Hire_End_Date__s:S.endDate,
-    Hire_Duration_Days__s:q.days,Booking_Status__s:status,
+    Name:name,
+    Booking_Name__s:name,
+    Product__s:{id:p.id},
+    Deal__s:{id:S.dealId},
+    Hire_Start_Date__s:S.startDate,
+    Hire_End_Date__s:S.endDate,
+    Hire_Duration_Days__s:q.days,
+    Booking_Status__s:status,
     Delivery_Required__s:S.delivery,
     Delivery_Address__s:document.getElementById('delivAddr').value||'',
     Special_Requirements__s:document.getElementById('specReqs').value||'',
-    Total_Hire_Cost__s:q.hireCost,Deposit_Amount__s:q.deposit,
+    Total_Hire_Cost__s:q.hireCost,
+    Deposit_Amount__s:q.deposit,
     Delivery_Fee_Charged__s:q.delivFee,
     ...(holdExpiry?{Hold_Expiry_Date__s:holdExpiry}:{})
   };
-  await crmCreate('Hire_Bookings',rec);
+
+  const result = await crmCreate('Hire_Bookings', rec);
   btn.disabled=false;
   btn.innerHTML=status==='Confirmed'?'Confirm &amp; Book':'Place Hold';
-  const msg=status==='Confirmed'
-    ?`✅ Booking confirmed for ${p.Product_Name} (${S.startDate} – ${S.endDate}).`
-    :`⏳ Hold placed until ${holdExpiry}. Confirm within 3 days.`;
-  showAlert(msg,'success');
-  S.bookings.push({id:'new_'+Date.now(),Product__s:{id:p.id},Deal__s:{id:S.dealId},Hire_Start_Date__s:S.startDate,Hire_End_Date__s:S.endDate,Booking_Status__s:status,Booking_Name__s:name,Total_Hire_Cost__s:q.hireCost,Hire_Duration_Days__s:q.days});
-  setTimeout(()=>goStep(4),1800);
+
+  if(result){
+    const msg=status==='Confirmed'
+      ?`✅ Booking confirmed for ${p.Product_Name} (${S.startDate} – ${S.endDate}).`
+      :`⏳ Hold placed until ${holdExpiry}. Confirm within 3 days.`;
+    showAlert(msg,'success');
+    S.bookings.push({
+      id:'new_'+Date.now(),Product__s:{id:p.id},Deal__s:{id:S.dealId},
+      Hire_Start_Date__s:S.startDate,Hire_End_Date__s:S.endDate,
+      Booking_Status__s:status,Booking_Name__s:name,
+      Total_Hire_Cost__s:q.hireCost,Hire_Duration_Days__s:q.days
+    });
+    setTimeout(()=>goStep(4),1800);
+  } else {
+    showAlert('Failed to save booking. Please try again.','warning');
+  }
 }
 
 // ── Deal Bookings ──────────────────────────────────────────────────
 async function loadDealBookings(){
   const all=await crmGetAll('Hire_Bookings');
-  S.dealBookings=all.filter(b=>{const did=b.Deal__s?.id||b.Deal__s;return did===S.dealId;});
+  S.dealBookings = S.dealId==='DEMO'
+    ? all
+    : all.filter(b=>{const did=b.Deal__s?.id||b.Deal__s;return did===S.dealId;});
   renderDealBookings();
 }
 
@@ -601,12 +631,12 @@ function renderDealBookings(){
   }
   const bc=(s)=>({'Confirmed':'badge-confirmed','On Hold':'badge-hold','Enquiry':'badge-enquiry','Cancelled':'badge-cancelled','Completed':'badge-completed'}[s]||'badge-enquiry');
   el.innerHTML=`<table class="booking-table">
-    <thead><tr><th>Booking</th><th>Start</th><th>End</th><th>Days</th><th>Cost</th><th>Status</th><th>Actions</th></tr></thead>
+    <thead><tr><th>Booking</th><th>Start</th><th>End</th><th>Days</th><th>Cost (AUD)</th><th>Status</th><th>Actions</th></tr></thead>
     <tbody>${S.dealBookings.map(b=>`<tr>
       <td>${b.Booking_Name__s||b.Name||'—'}</td>
       <td>${b.Hire_Start_Date__s||'—'}</td><td>${b.Hire_End_Date__s||'—'}</td>
       <td>${b.Hire_Duration_Days__s||'—'}</td>
-      <td>${b.Total_Hire_Cost__s?'£'+Number(b.Total_Hire_Cost__s).toFixed(2):'—'}</td>
+      <td>${b.Total_Hire_Cost__s?fmt(b.Total_Hire_Cost__s):'—'}</td>
       <td><span class="badge ${bc(b.Booking_Status__s)}">${b.Booking_Status__s}</span></td>
       <td>
         ${b.Booking_Status__s==='On Hold'?`<button class="btn btn-primary" style="padding:4px 10px;font-size:11px" onclick="confirmB('${b.id}')">Confirm</button> `:''}
