@@ -344,12 +344,25 @@ window.addEventListener("load", async () => {
 });
 
 // ── CRM API ────────────────────────────────────────────────────────
-async function crmGetAll(entity) {
+async function callFunction(params) {
   try {
-    const resp = await ZOHO.CRM.API.getAllRecords({
-      Entity: entity, per_page: 200, sort_by: 'id', sort_order: 'asc'
-    });
-    if (resp?.data?.length) return resp.data;
+    const resp = await ZOHO.CRM.FUNCTIONS.execute('hire_management_api', {arguments: JSON.stringify(params)});
+    console.log('Function response:', resp);
+    const raw = resp?.details?.output || resp?.output || '{}';
+    return JSON.parse(raw);
+  } catch(e) {
+    console.warn('Function call failed:', e);
+    return null;
+  }
+}
+
+async function crmGetAll(entity) {
+  const actionMap = {'Products':'getProducts','Hire_Bookings':'getDealBookings','Hire_Rates':'getRates'};
+  const action = actionMap[entity];
+  if (!action) return mockData(entity);
+  try {
+    const result = await callFunction({action, dealId: S.dealId});
+    if (result?.data?.length) return result.data;
     return mockData(entity);
   } catch(e) {
     console.warn('crmGetAll failed for', entity, e);
@@ -357,15 +370,41 @@ async function crmGetAll(entity) {
   }
 }
 
-async function crmCreate(entity, data) {
+async function crmGetProductBookings(productId) {
   try {
-    const resp = await ZOHO.CRM.API.insertRecord({
-      Entity: entity,
-      APIData: data,
-      Trigger: []
+    const result = await callFunction({action: 'getProductBookings', productId, dealId: S.dealId});
+    return result?.data || [];
+  } catch(e) { return []; }
+}
+
+async function crmGetRates(productId) {
+  try {
+    const result = await callFunction({action: 'getRates', productId, dealId: S.dealId});
+    return result?.data || [];
+  } catch(e) { return []; }
+}
+
+async function crmCreate(entity, data) {
+  if (entity !== 'Hire_Bookings') return null;
+  try {
+    const result = await callFunction({
+      action: 'createBooking',
+      dealId: S.dealId,
+      productId: data.Product__s?.id || data.Product__s,
+      name: data.Booking_Name__s,
+      startDate: data.Hire_Start_Date__s,
+      endDate: data.Hire_End_Date__s,
+      days: String(data.Hire_Duration_Days__s),
+      status: data.Booking_Status__s,
+      hireCost: String(data.Total_Hire_Cost__s),
+      deposit: String(data.Deposit_Amount__s),
+      deliveryFee: String(data.Delivery_Fee_Charged__s),
+      delivery: String(data.Delivery_Required__s),
+      requirements: data.Special_Requirements__s || '',
+      holdExpiry: data.Hold_Expiry_Date__s || ''
     });
-    console.log('Created record:', resp);
-    return resp;
+    console.log('Create booking result:', result);
+    return result;
   } catch(e) {
     console.error('crmCreate failed:', e);
     return null;
@@ -373,12 +412,9 @@ async function crmCreate(entity, data) {
 }
 
 async function crmUpdate(entity, id, data) {
+  if (entity !== 'Hire_Bookings') return null;
   try {
-    return await ZOHO.CRM.API.updateRecord({
-      Entity: entity,
-      APIData: {...data, id},
-      Trigger: []
-    });
+    return await callFunction({action: 'updateBooking', bookingId: id, status: data.Booking_Status__s, dealId: S.dealId});
   } catch(e) { return null; }
 }
 
@@ -445,13 +481,9 @@ function renderProducts() {
 async function selectProd(id) {
   S.selectedProd = S.products.find(p=>p.id===id);
   renderProducts();
-  const all = await crmGetAll('Hire_Bookings');
-  S.bookings = all.filter(b=>{
-    const pid = b.Product__s?.id||b.Product__s;
-    return pid===id && ['Confirmed','On Hold'].includes(b.Booking_Status__s);
-  });
-  const allRates = await crmGetAll('Hire_Rates');
-  S.rates = allRates.filter(r=>(r.Product__s?.id||r.Product__s)===id);
+  const allBookings = await crmGetProductBookings(id);
+  S.bookings = allBookings.filter(b=>['Confirmed','On Hold'].includes(b.Booking_Status__s));
+  S.rates = await crmGetRates(id);
   goStep(2);
 }
 
