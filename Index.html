@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hire Availability</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy: #1a2744; --teal: #0d7d7a; --teal-lt: #e6f5f5;
+  --amber: #e8a020; --red: #c0392b; --green: #1a7a4a;
+  --green-lt: #e8f5ed; --hold: #f0a500; --hold-lt: #fff8e6;
+  --grey: #f4f6f9; --border: #dde3ed; --text: #1a2744;
+  --muted: #6b7a99; --white: #fff; --radius: 8px;
+  --shadow: 0 2px 12px rgba(26,39,68,0.10);
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--grey); color: var(--text); font-size: 13px; min-height: 100vh; }
+.widget-header { background: var(--navy); color: white; padding: 14px 20px; display: flex; align-items: center; gap: 10px; }
+.widget-header h1 { font-size: 15px; font-weight: 600; }
+.deal-badge { margin-left: auto; background: rgba(255,255,255,0.15); padding: 3px 10px; border-radius: 20px; font-size: 11px; }
+.steps-bar { background: white; border-bottom: 1px solid var(--border); display: flex; padding: 0 20px; }
+.step { padding: 12px 16px 10px; font-size: 12px; font-weight: 500; color: var(--muted); border-bottom: 3px solid transparent; white-space: nowrap; }
+.step.active { color: var(--teal); border-bottom-color: var(--teal); }
+.step.done { color: var(--green); }
+.step span { display: inline-block; width: 18px; height: 18px; border-radius: 50%; background: var(--border); color: white; font-size: 10px; line-height: 18px; text-align: center; margin-right: 6px; }
+.step.active span { background: var(--teal); }
+.step.done span { background: var(--green); }
+.content { padding: 20px; max-width: 900px; margin: 0 auto; }
+.card { background: white; border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 16px; }
+.card-head { padding: 14px 18px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; color: var(--navy); display: flex; align-items: center; gap: 8px; }
+.card-body { padding: 18px; }
+.product-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.filter-btn { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: white; cursor: pointer; font-size: 12px; color: var(--muted); transition: all 0.15s; }
+.filter-btn.active { background: var(--navy); color: white; border-color: var(--navy); }
+.product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.product-card { border: 2px solid var(--border); border-radius: var(--radius); padding: 14px; cursor: pointer; transition: all 0.15s; background: white; }
+.product-card:hover { border-color: var(--teal); transform: translateY(-1px); }
+.product-card.selected { border-color: var(--teal); background: var(--teal-lt); }
+.product-card.unavailable { opacity: 0.5; cursor: not-allowed; }
+.product-icon { font-size: 28px; margin-bottom: 8px; }
+.product-name { font-weight: 600; font-size: 12px; margin-bottom: 4px; }
+.product-cat { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+.product-rate { font-size: 12px; color: var(--teal); font-weight: 600; }
+.status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 4px; }
+.dot-green { background: var(--green); } .dot-amber { background: var(--hold); } .dot-red { background: var(--red); }
+.calendar-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.cal-btn { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 12px; }
+.cal-btn:hover { background: var(--grey); }
+.cal-month { font-weight: 600; font-size: 14px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.cal-hdr { text-align: center; font-size: 11px; color: var(--muted); font-weight: 600; padding: 4px; }
+.cal-day { text-align: center; padding: 7px 4px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.1s; }
+.cal-day.empty, .cal-day.past { color: var(--muted); cursor: not-allowed; }
+.cal-day.booked { background: #fce8e6; color: var(--red); cursor: not-allowed; }
+.cal-day.on-hold { background: var(--hold-lt); color: var(--hold); cursor: not-allowed; }
+.cal-day.avail:hover { background: var(--teal-lt); color: var(--teal); }
+.cal-day.sel-start, .cal-day.sel-end { background: var(--teal); color: white; }
+.cal-day.in-range { background: var(--teal-lt); color: var(--teal); }
+.cal-day.today { font-weight: 700; }
+.legend { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+.leg-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.leg-sw { width: 14px; height: 14px; border-radius: 3px; }
+.two-col { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
+.field-group { margin-bottom: 10px; }
+.field-group label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.field-group input, .field-group select, .field-group textarea { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; color: var(--text); background: white; }
+.field-group input:focus, .field-group textarea:focus { outline: none; border-color: var(--teal); }
+.date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.toggle-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; }
+.toggle { position: relative; width: 40px; height: 22px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 22px; transition: 0.2s; }
+.toggle-slider:before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.2s; }
+.toggle input:checked + .toggle-slider { background: var(--teal); }
+.toggle input:checked + .toggle-slider:before { transform: translateX(18px); }
+.quote-panel { background: var(--navy); color: white; border-radius: var(--radius); padding: 18px; margin-bottom: 16px; }
+.quote-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; margin-bottom: 12px; }
+.quote-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.quote-row:last-child { border-bottom: none; }
+.quote-total { font-size: 18px; font-weight: 700; color: var(--amber); }
+.quote-label { opacity: 0.8; }
+.quote-tier { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+.btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.btn { padding: 10px 20px; border-radius: var(--radius); font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+.btn-primary { background: var(--teal); color: white; }
+.btn-primary:hover { background: #0a6b68; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-hold { background: var(--amber); color: white; }
+.btn-hold:hover { background: #d09010; }
+.btn-danger { background: var(--red); color: white; }
+.btn-ghost { background: white; color: var(--text); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--grey); }
+.action-box { border-radius: var(--radius); padding: 14px 18px; margin-top: 12px; }
+.action-confirm { background: var(--teal-lt); border: 1px solid var(--teal); }
+.action-confirm h4 { color: var(--teal); margin-bottom: 6px; font-size: 13px; }
+.action-hold { background: var(--hold-lt); border: 1px solid var(--hold); }
+.action-hold h4 { color: #9a7000; margin-bottom: 6px; font-size: 13px; }
+.booking-table { width: 100%; border-collapse: collapse; }
+.booking-table th { text-align: left; padding: 8px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 2px solid var(--border); }
+.booking-table td { padding: 10px 12px; font-size: 12px; border-bottom: 1px solid var(--border); }
+.booking-table tr:last-child td { border-bottom: none; }
+.badge { display: inline-block; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.badge-confirmed { background: var(--green-lt); color: var(--green); }
+.badge-hold { background: var(--hold-lt); color: var(--hold); }
+.badge-enquiry { background: #eef2ff; color: #4f63c8; }
+.badge-cancelled { background: #fce8e6; color: var(--red); }
+.badge-completed { background: var(--grey); color: var(--muted); }
+.empty-state { text-align: center; padding: 40px; color: var(--muted); }
+.empty-icon { font-size: 36px; margin-bottom: 8px; }
+.alert { padding: 10px 14px; border-radius: var(--radius); margin-bottom: 12px; font-size: 12px; display: flex; align-items: center; gap: 8px; }
+.alert-success { background: var(--green-lt); color: var(--green); border: 1px solid #a8d5b8; }
+.alert-warning { background: var(--hold-lt); color: #9a7000; border: 1px solid #f0d080; }
+.alert-info { background: var(--teal-lt); color: var(--teal); border: 1px solid #a0d8d8; }
+.loader { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
+.loader-dark { border-color: var(--border); border-top-color: var(--teal); }
+@keyframes spin { to { transform: rotate(360deg); } }
+hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+.note { font-size: 11px; color: var(--muted); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div class="widget-header">
+  <span>🦽</span>
+  <h1>Equipment Hire — Availability &amp; Booking</h1>
+  <div class="deal-badge" id="dealBadge">Loading...</div>
+</div>
+
+<div class="steps-bar">
+  <div class="step active" id="step1"><span>1</span>Select Equipment</div>
+  <div class="step" id="step2"><span>2</span>Choose Dates</div>
+  <div class="step" id="step3"><span>3</span>Quote &amp; Book</div>
+  <div class="step" id="step4"><span>4</span>My Bookings</div>
+</div>
+
+<div class="content">
+  <div id="alertArea"></div>
+
+  <!-- STEP 1 -->
+  <div id="panel1">
+    <div class="card">
+      <div class="card-head">🔍 Select Equipment to Hire</div>
+      <div class="card-body">
+        <div class="product-filters" id="catFilters">
+          <button class="filter-btn active" onclick="filterCat('all',this)">All</button>
+        </div>
+        <div class="product-grid" id="productGrid">
+          <div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--muted)">
+            <div class="loader loader-dark" style="margin:0 auto 8px"></div> Loading equipment...
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div id="panel2" style="display:none">
+    <div class="two-col">
+      <div>
+        <div class="card">
+          <div class="card-head" id="calTitle">📅 Availability Calendar</div>
+          <div class="card-body">
+            <div class="calendar-nav">
+              <button class="cal-btn" onclick="prevMonth()">← Prev</button>
+              <div class="cal-month" id="calLabel"></div>
+              <button class="cal-btn" onclick="nextMonth()">Next →</button>
+            </div>
+            <div class="cal-grid" id="calGrid"></div>
+            <div class="legend">
+              <div class="leg-item"><div class="leg-sw" style="background:var(--teal-lt)"></div>Available</div>
+              <div class="leg-item"><div class="leg-sw" style="background:var(--teal)"></div>Selected</div>
+              <div class="leg-item"><div class="leg-sw" style="background:var(--hold-lt)"></div>On Hold</div>
+              <div class="leg-item"><div class="leg-sw" style="background:#fce8e6"></div>Booked</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-head">📋 Booking Details</div>
+          <div class="card-body">
+            <div class="date-row">
+              <div class="field-group">
+                <label>Start Date</label>
+                <input type="date" id="startDate" onchange="onDatesChange()">
+              </div>
+              <div class="field-group">
+                <label>End Date</label>
+                <input type="date" id="endDate" onchange="onDatesChange()">
+              </div>
+            </div>
+            <div class="note" id="minNote"></div>
+            <hr>
+            <div class="toggle-row">
+              <label class="toggle">
+                <input type="checkbox" id="delivToggle" onchange="onDatesChange()">
+                <span class="toggle-slider"></span>
+              </label>
+              <span>Delivery required</span>
+              <span id="delivFeeLabel" style="margin-left:auto;color:var(--teal);font-weight:600;font-size:12px"></span>
+            </div>
+            <div id="delivAddrWrap" style="display:none" class="field-group">
+              <label>Delivery Address</label>
+              <textarea id="delivAddr" rows="2" placeholder="Full delivery address..."></textarea>
+            </div>
+            <hr>
+            <div class="field-group">
+              <label>Special Requirements</label>
+              <textarea id="specReqs" rows="2" placeholder="Clinical notes, adaptations, access needs..."></textarea>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-ghost" onclick="goStep(1)">← Back</button>
+              <button class="btn btn-primary" id="btnToQuote" onclick="goStep(3)" disabled>View Quote →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div id="panel3" style="display:none">
+    <div class="two-col">
+      <div>
+        <div class="card">
+          <div class="card-head">📝 Booking Summary</div>
+          <div class="card-body">
+            <div id="summaryDetails" style="font-size:13px;line-height:1.8;color:var(--muted)"></div>
+            <hr>
+            <div class="action-box action-confirm">
+              <h4>✅ Confirm Full Booking</h4>
+              <p style="font-size:12px;color:var(--teal);margin-bottom:10px">Creates a confirmed booking linked to this Deal.</p>
+              <button class="btn btn-primary" id="btnConfirm" onclick="placeBooking('Confirmed')">Confirm &amp; Book</button>
+            </div>
+            <div class="action-box action-hold" style="margin-top:12px">
+              <h4>⏳ Place a Hold (3 days)</h4>
+              <p style="font-size:12px;color:#9a7000;margin-bottom:10px">Reserves the equipment for 3 days while you confirm with the client.</p>
+              <button class="btn btn-hold" id="btnHold" onclick="placeBooking('On Hold')">Place Hold</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="quote-panel">
+          <div class="quote-title">💷 Hire Quote</div>
+          <div id="quoteLines"></div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <button class="btn btn-ghost" onclick="goStep(2)" style="width:100%">← Edit Dates</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div id="panel4" style="display:none">
+    <div class="card">
+      <div class="card-head">
+        📋 Hire Bookings for This Deal
+        <button class="btn btn-primary" onclick="goStep(1)" style="margin-left:auto;padding:6px 14px;font-size:12px">+ New Booking</button>
+      </div>
+      <div class="card-body" style="padding:0" id="bookingsTable"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────
+const S = {
+  dealId: null, dealName: 'This Deal',
+  products: [], selectedProd: null,
+  bookings: [], dealBookings: [], rates: [],
+  startDate: null, endDate: null,
+  calYear: new Date().getFullYear(), calMonth: new Date().getMonth(),
+  filterCat: 'all', delivery: false, quote: null
+};
+
+const ICONS = {
+  'Wheelchair - Manual':'🦽','Wheelchair - Power':'🦼',
+  'Mobility Scooter':'🛵','Hoist - Ceiling Track':'🏗️',
+  'Hoist - Portable':'🏗️','Shower Chair':'🚿',
+  'Hospital Bed':'🛏️','Walking Aid':'🚶','Stair Lift':'🪜','Other':'⚕️'
+};
+
+// ── Init ───────────────────────────────────────────────────────────
+window.addEventListener('load', async () => {
+  // Try ZOHO SDK
+  try {
+    if (typeof ZOHO !== 'undefined' && ZOHO.embeddedApp) {
+      await ZOHO.embeddedApp.init();
+      const entity = await ZOHO.CRM.UI.Record.get();
+      S.dealId = entity?.data?.id || entity?.data?.Id || 'DEMO';
+      S.dealName = entity?.data?.Deal_Name || entity?.data?.Name || 'This Deal';
+    } else {
+      throw new Error('SDK not available');
+    }
+  } catch(e) {
+    S.dealId = 'DEMO';
+    S.dealName = 'Earnest Wright — Post-Surgery Hire';
+  }
+  document.getElementById('dealBadge').textContent = S.dealName;
+  loadProducts();
+  loadDealBookings();
+});
+
+// ── CRM API ────────────────────────────────────────────────────────
+async function crmGetAll(entity, fields) {
+  try {
+    if (typeof ZOHO === 'undefined') throw new Error('no sdk');
+    const resp = await ZOHO.CRM.API.getAllRecords({Entity: entity, per_page: 200, sort_by: 'id', sort_order: 'asc'});
+    return resp?.data || [];
+  } catch(e) { return mockData(entity); }
+}
+
+async function crmCreate(entity, data) {
+  try {
+    if (typeof ZOHO === 'undefined') throw new Error('no sdk');
+    return await ZOHO.CRM.API.insertRecord({Entity: entity, APIData: data, Trigger: []});
+  } catch(e) { return {data:[{code:'SUCCESS',details:{id:'MOCK_'+Date.now()}}]}; }
+}
+
+async function crmUpdate(entity, id, data) {
+  try {
+    if (typeof ZOHO === 'undefined') throw new Error('no sdk');
+    return await ZOHO.CRM.API.updateRecord({Entity: entity, APIData: {...data, id}, Trigger: []});
+  } catch(e) { return null; }
+}
+
+// ── Mock Data ──────────────────────────────────────────────────────
+function mockData(entity) {
+  if (entity === 'Products') return [
+    {id:'P1',Product_Name:'Manual Wheelchair',Equipment_Category__s:'Wheelchair - Manual',Daily_Rate__s:25,Weekly_Rate__s:140,Monthly_Rate__s:450,Min_Hire_Days__s:3,Deposit_Required__s:150,Delivery_Available__s:true,Delivery_Fee__s:35,Hire_Status__s:'Available',Hire_Enabled__s:true},
+    {id:'P2',Product_Name:'Power Wheelchair',Equipment_Category__s:'Wheelchair - Power',Daily_Rate__s:65,Weekly_Rate__s:380,Monthly_Rate__s:1200,Min_Hire_Days__s:7,Deposit_Required__s:500,Delivery_Available__s:true,Delivery_Fee__s:55,Hire_Status__s:'Available',Hire_Enabled__s:true},
+    {id:'P3',Product_Name:'Mobility Scooter',Equipment_Category__s:'Mobility Scooter',Daily_Rate__s:45,Weekly_Rate__s:260,Monthly_Rate__s:850,Min_Hire_Days__s:3,Deposit_Required__s:300,Delivery_Available__s:true,Delivery_Fee__s:45,Hire_Status__s:'Available',Hire_Enabled__s:true},
+    {id:'P4',Product_Name:'Ceiling Track Hoist',Equipment_Category__s:'Hoist - Ceiling Track',Daily_Rate__s:55,Weekly_Rate__s:320,Monthly_Rate__s:1000,Min_Hire_Days__s:14,Deposit_Required__s:400,Delivery_Available__s:true,Delivery_Fee__s:95,Hire_Status__s:'Available',Hire_Enabled__s:true},
+    {id:'P5',Product_Name:'Portable Shower Chair',Equipment_Category__s:'Shower Chair',Daily_Rate__s:12,Weekly_Rate__s:65,Monthly_Rate__s:200,Min_Hire_Days__s:3,Deposit_Required__s:75,Delivery_Available__s:true,Delivery_Fee__s:20,Hire_Status__s:'Available',Hire_Enabled__s:true},
+    {id:'P6',Product_Name:'Hospital Bed - Electric',Equipment_Category__s:'Hospital Bed',Daily_Rate__s:50,Weekly_Rate__s:290,Monthly_Rate__s:950,Min_Hire_Days__s:14,Deposit_Required__s:350,Delivery_Available__s:true,Delivery_Fee__s:85,Hire_Status__s:'Hired Out',Hire_Enabled__s:true},
+    {id:'P7',Product_Name:'Rollator Walking Frame',Equipment_Category__s:'Walking Aid',Daily_Rate__s:10,Weekly_Rate__s:55,Monthly_Rate__s:165,Min_Hire_Days__s:3,Deposit_Required__s:60,Delivery_Available__s:true,Delivery_Fee__s:20,Hire_Status__s:'Available',Hire_Enabled__s:true},
+    {id:'P8',Product_Name:'Portable Stair Lift',Equipment_Category__s:'Stair Lift',Daily_Rate__s:85,Weekly_Rate__s:490,Monthly_Rate__s:1600,Min_Hire_Days__s:14,Deposit_Required__s:800,Delivery_Available__s:true,Delivery_Fee__s:120,Hire_Status__s:'Available',Hire_Enabled__s:true},
+  ];
+  if (entity === 'Hire_Bookings') return [
+    {id:'B1',Product__s:{id:'P1'},Hire_Start_Date__s:'2026-08-01',Hire_End_Date__s:'2026-08-21',Booking_Status__s:'Confirmed',Deal__s:{id:S.dealId},Booking_Name__s:'Manual Wheelchair | Demo | 2026-08-01',Total_Hire_Cost__s:560,Hire_Duration_Days__s:20},
+    {id:'B2',Product__s:{id:'P3'},Hire_Start_Date__s:'2026-08-15',Hire_End_Date__s:'2026-08-29',Booking_Status__s:'On Hold',Deal__s:{id:S.dealId},Booking_Name__s:'Mobility Scooter | Demo | 2026-08-15',Total_Hire_Cost__s:520,Hire_Duration_Days__s:14},
+  ];
+  if (entity === 'Hire_Rates') return [
+    {id:'R1',Product__s:{id:'P1'},Rate_Type__s:'Daily',Min_Days__s:1,Max_Days__s:6,Rate_Amount__s:25,Rate_Per__s:'Per Day'},
+    {id:'R2',Product__s:{id:'P1'},Rate_Type__s:'Weekly',Min_Days__s:7,Max_Days__s:27,Rate_Amount__s:140,Rate_Per__s:'Per Week'},
+    {id:'R3',Product__s:{id:'P1'},Rate_Type__s:'Monthly',Min_Days__s:28,Max_Days__s:180,Rate_Amount__s:450,Rate_Per__s:'Per Month'},
+    {id:'R4',Product__s:{id:'P2'},Rate_Type__s:'Weekly',Min_Days__s:7,Max_Days__s:27,Rate_Amount__s:380,Rate_Per__s:'Per Week'},
+    {id:'R5',Product__s:{id:'P3'},Rate_Type__s:'Daily',Min_Days__s:1,Max_Days__s:6,Rate_Amount__s:45,Rate_Per__s:'Per Day'},
+    {id:'R6',Product__s:{id:'P3'},Rate_Type__s:'Weekly',Min_Days__s:7,Max_Days__s:27,Rate_Amount__s:260,Rate_Per__s:'Per Week'},
+  ];
+  return [];
+}
+
+// ── Products ───────────────────────────────────────────────────────
+async function loadProducts() {
+  const data = await crmGetAll('Products');
+  S.products = data.filter(p => p.Hire_Enabled__s !== false && p.Product_Name);
+  const cats = [...new Set(S.products.map(p=>p.Equipment_Category__s).filter(Boolean))];
+  const filtersEl = document.getElementById('catFilters');
+  filtersEl.innerHTML = '<button class="filter-btn active" onclick="filterCat(\'all\',this)">All</button>';
+  cats.forEach(c => {
+    const label = c.split(' - ')[0];
+    filtersEl.innerHTML += `<button class="filter-btn" onclick="filterCat('${c}',this)">${label}</button>`;
+  });
+  renderProducts();
+}
+
+function filterCat(cat, btn) {
+  S.filterCat = cat;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderProducts();
+}
+
+function renderProducts() {
+  const grid = document.getElementById('productGrid');
+  const list = S.filterCat==='all' ? S.products : S.products.filter(p=>p.Equipment_Category__s===S.filterCat);
+  if(!list.length){grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--muted)">No equipment found.</div>';return;}
+  grid.innerHTML = list.map(p=>{
+    const avail = p.Hire_Status__s || 'Available';
+    const unavail = ['Hired Out','In Maintenance'].includes(avail);
+    const dotCls = avail==='Available'?'dot-green':avail==='On Hold'?'dot-amber':'dot-red';
+    const icon = ICONS[p.Equipment_Category__s]||'⚕️';
+    const sel = S.selectedProd?.id===p.id?'selected':'';
+    const una = unavail?'unavailable':'';
+    const click = unavail?'':'onclick="selectProd(\''+p.id+'\')"';
+    return `<div class="product-card ${sel} ${una}" ${click}>
+      <div class="product-icon">${icon}</div>
+      <div class="product-name">${p.Product_Name}</div>
+      <div class="product-cat">${p.Equipment_Category__s||''}</div>
+      <div class="product-rate">from £${p.Daily_Rate__s||0}/day</div>
+      <div style="margin-top:6px;font-size:11px;color:var(--muted)"><span class="status-dot ${dotCls}"></span>${avail}</div>
+    </div>`;
+  }).join('');
+}
+
+async function selectProd(id) {
+  S.selectedProd = S.products.find(p=>p.id===id);
+  renderProducts();
+  const all = await crmGetAll('Hire_Bookings');
+  S.bookings = all.filter(b=>{
+    const pid = b.Product__s?.id||b.Product__s;
+    return pid===id && ['Confirmed','On Hold'].includes(b.Booking_Status__s);
+  });
+  const allRates = await crmGetAll('Hire_Rates');
+  S.rates = allRates.filter(r=>(r.Product__s?.id||r.Product__s)===id);
+  goStep(2);
+}
+
+// ── Calendar ───────────────────────────────────────────────────────
+function prevMonth(){S.calMonth--;if(S.calMonth<0){S.calMonth=11;S.calYear--;}renderCal();}
+function nextMonth(){S.calMonth++;if(S.calMonth>11){S.calMonth=0;S.calYear++;}renderCal();}
+
+function renderCal(){
+  const p = S.selectedProd;
+  document.getElementById('calTitle').innerHTML = `📅 Availability — ${p?.Product_Name||''}`;
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('calLabel').textContent = `${months[S.calMonth]} ${S.calYear}`;
+  const grid = document.getElementById('calGrid');
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let html = days.map(d=>`<div class="cal-hdr">${d}</div>`).join('');
+  const firstDay = new Date(S.calYear,S.calMonth,1);
+  const total = new Date(S.calYear,S.calMonth+1,0).getDate();
+  const pad = (firstDay.getDay()+6)%7;
+  const today = new Date(); today.setHours(0,0,0,0);
+  for(let i=0;i<pad;i++) html+=`<div class="cal-day empty"></div>`;
+  for(let d=1;d<=total;d++){
+    const date = new Date(S.calYear,S.calMonth,d);
+    const ds = toDS(date);
+    const isPast = date<today;
+    const bStatus = dateStatus(ds);
+    const isStart = S.startDate===ds;
+    const isEnd = S.endDate===ds;
+    const inRange = S.startDate&&S.endDate&&ds>S.startDate&&ds<S.endDate;
+    const isToday = date.getTime()===today.getTime();
+    let cls='cal-day';
+    if(isPast) cls+=' past';
+    else if(bStatus==='booked') cls+=' booked';
+    else if(bStatus==='hold') cls+=' on-hold';
+    else cls+=' avail';
+    if(isStart||isEnd) cls+=' sel-start';
+    if(inRange) cls+=' in-range';
+    if(isToday) cls+=' today';
+    const clickable = !isPast&&bStatus==='free';
+    html+=`<div class="${cls}" ${clickable?`onclick="pickDate('${ds}')"`:''}>${d}</div>`;
+  }
+  grid.innerHTML=html;
+}
+
+function dateStatus(ds){
+  for(const b of S.bookings){
+    if(ds>=b.Hire_Start_Date__s&&ds<=b.Hire_End_Date__s)
+      return b.Booking_Status__s==='On Hold'?'hold':'booked';
+  }
+  return 'free';
+}
+
+function pickDate(ds){
+  if(!S.startDate||(S.startDate&&S.endDate)){S.startDate=ds;S.endDate=null;}
+  else if(ds>S.startDate){S.endDate=ds;}
+  else{S.startDate=ds;S.endDate=null;}
+  document.getElementById('startDate').value=S.startDate||'';
+  document.getElementById('endDate').value=S.endDate||'';
+  renderCal();
+  onDatesChange();
+}
+
+function toDS(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function daysBetween(a,b){return Math.round((new Date(b)-new Date(a))/86400000);}
+
+function onDatesChange(){
+  S.startDate = document.getElementById('startDate').value;
+  S.endDate = document.getElementById('endDate').value;
+  S.delivery = document.getElementById('delivToggle').checked;
+  document.getElementById('delivAddrWrap').style.display = S.delivery?'block':'none';
+  const p = S.selectedProd;
+  document.getElementById('delivFeeLabel').textContent = S.delivery&&p?`+£${p.Delivery_Fee__s}`:'';
+  const min = p?.Min_Hire_Days__s||1;
+  document.getElementById('minNote').textContent = `⚠ Minimum hire: ${min} day${min!==1?'s':''}`;
+  if(S.startDate&&S.endDate){
+    const days = daysBetween(S.startDate,S.endDate);
+    const ok = days>=min;
+    document.getElementById('btnToQuote').disabled = !ok;
+    if(!ok) showAlert(`Minimum hire is ${min} days. Please extend your dates.`,'warning');
+    else clearAlert();
+    renderCal();
+    calcQuote();
+  } else {
+    document.getElementById('btnToQuote').disabled = true;
+  }
+}
+
+// ── Quote ──────────────────────────────────────────────────────────
+function calcQuote(){
+  const p = S.selectedProd;
+  if(!p||!S.startDate||!S.endDate) return;
+  const days = daysBetween(S.startDate,S.endDate);
+  let hireCost=0, tier='', rateDesc='';
+  const sorted = [...S.rates].sort((a,b)=>(b.Min_Days__s||0)-(a.Min_Days__s||0));
+  const matched = sorted.find(r=>days>=(r.Min_Days__s||0));
+  if(matched){
+    if(matched.Rate_Type__s==='Monthly'){const m=Math.ceil(days/30);hireCost=m*matched.Rate_Amount__s;tier=`${m} month${m!==1?'s':''} @ £${matched.Rate_Amount__s}/mo`;}
+    else if(matched.Rate_Type__s==='Weekly'){const w=Math.ceil(days/7);hireCost=w*matched.Rate_Amount__s;tier=`${w} week${w!==1?'s':''} @ £${matched.Rate_Amount__s}/wk`;}
+    else{hireCost=days*matched.Rate_Amount__s;tier=`${days} days @ £${matched.Rate_Amount__s}/day`;}
+  } else {
+    if(days>=28&&p.Monthly_Rate__s){const m=Math.ceil(days/30);hireCost=m*p.Monthly_Rate__s;tier=`${m} month${m!==1?'s':''} @ £${p.Monthly_Rate__s}/mo`;}
+    else if(days>=7&&p.Weekly_Rate__s){const w=Math.ceil(days/7);hireCost=w*p.Weekly_Rate__s;tier=`${w} week${w!==1?'s':''} @ £${p.Weekly_Rate__s}/wk`;}
+    else{hireCost=days*(p.Daily_Rate__s||0);tier=`${days} days @ £${p.Daily_Rate__s}/day`;}
+  }
+  const deliv = S.delivery?(p.Delivery_Fee__s||0):0;
+  const dep = p.Deposit_Required__s||0;
+  S.quote = {days,hireCost,delivFee:deliv,deposit:dep,total:hireCost+deliv,tier};
+}
+
+// ── Steps ──────────────────────────────────────────────────────────
+function goStep(n){
+  S.currentStep=n;
+  [1,2,3,4].forEach(i=>{
+    document.getElementById(`panel${i}`).style.display=i===n?'':'none';
+    const s=document.getElementById(`step${i}`);
+    s.classList.remove('active','done');
+    if(i<n)s.classList.add('done');
+    if(i===n)s.classList.add('active');
+    s.querySelector('span').textContent=i<n?'✓':i;
+  });
+  if(n===2){S.calYear=new Date().getFullYear();S.calMonth=new Date().getMonth();renderCal();document.getElementById('delivToggle').checked=false;document.getElementById('delivAddrWrap').style.display='none';}
+  if(n===3){calcQuote();renderQuote();renderSummary();}
+  if(n===4)loadDealBookings();
+}
+
+function renderQuote(){
+  const q=S.quote;if(!q)return;
+  document.getElementById('quoteLines').innerHTML=`
+    <div class="quote-row"><span class="quote-label">Equipment hire</span><div><div class="quote-total">£${q.hireCost.toFixed(2)}</div><div class="quote-tier">${q.tier}</div></div></div>
+    ${q.delivFee?`<div class="quote-row"><span class="quote-label">Delivery &amp; collection</span><span>£${q.delivFee.toFixed(2)}</span></div>`:''}
+    <div class="quote-row"><span class="quote-label">Refundable deposit</span><span>£${q.deposit.toFixed(2)}</span></div>
+    <div class="quote-row" style="margin-top:8px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.3)">
+      <span style="font-weight:600">Total hire cost</span><span class="quote-total">£${q.total.toFixed(2)}</span>
+    </div>
+    <div class="quote-row"><span style="opacity:0.6;font-size:11px">Total inc. deposit</span><span style="opacity:0.7;font-size:12px">£${(q.total+q.deposit).toFixed(2)}</span></div>`;
+}
+
+function renderSummary(){
+  const p=S.selectedProd;const q=S.quote;
+  const icon=ICONS[p?.Equipment_Category__s]||'⚕️';
+  document.getElementById('summaryDetails').innerHTML=`
+    <div style="margin-bottom:12px;font-size:14px;font-weight:600;color:var(--navy)">${icon} ${p?.Product_Name}</div>
+    <div><strong>Period:</strong> ${S.startDate} → ${S.endDate} (${q?.days} days)</div>
+    <div><strong>Category:</strong> ${p?.Equipment_Category__s||'—'}</div>
+    <div><strong>Delivery:</strong> ${S.delivery?`Yes — £${p?.Delivery_Fee__s}`:'No — client collection'}</div>
+    ${document.getElementById('delivAddr').value?`<div><strong>Deliver to:</strong> ${document.getElementById('delivAddr').value}</div>`:''}
+    ${document.getElementById('specReqs').value?`<div><strong>Requirements:</strong> ${document.getElementById('specReqs').value}</div>`:''}`;
+}
+
+// ── Booking ────────────────────────────────────────────────────────
+async function placeBooking(status){
+  const p=S.selectedProd;const q=S.quote;
+  const btnId=status==='Confirmed'?'btnConfirm':'btnHold';
+  const btn=document.getElementById(btnId);
+  btn.innerHTML=`<span class="loader"></span> Saving...`;btn.disabled=true;
+  const holdExpiry=status==='On Hold'?toDS(new Date(Date.now()+3*86400000)):null;
+  const name=`${p.Product_Name} | ${S.dealName} | ${S.startDate}`;
+  const rec={
+    Name:name,Booking_Name__s:name,
+    Product__s:{id:p.id},Deal__s:{id:S.dealId},
+    Hire_Start_Date__s:S.startDate,Hire_End_Date__s:S.endDate,
+    Hire_Duration_Days__s:q.days,Booking_Status__s:status,
+    Delivery_Required__s:S.delivery,
+    Delivery_Address__s:document.getElementById('delivAddr').value||'',
+    Special_Requirements__s:document.getElementById('specReqs').value||'',
+    Total_Hire_Cost__s:q.hireCost,Deposit_Amount__s:q.deposit,
+    Delivery_Fee_Charged__s:q.delivFee,
+    ...(holdExpiry?{Hold_Expiry_Date__s:holdExpiry}:{})
+  };
+  await crmCreate('Hire_Bookings',rec);
+  btn.disabled=false;
+  btn.innerHTML=status==='Confirmed'?'Confirm &amp; Book':'Place Hold';
+  const msg=status==='Confirmed'
+    ?`✅ Booking confirmed for ${p.Product_Name} (${S.startDate} – ${S.endDate}).`
+    :`⏳ Hold placed until ${holdExpiry}. Confirm within 3 days.`;
+  showAlert(msg,'success');
+  S.bookings.push({id:'new_'+Date.now(),Product__s:{id:p.id},Deal__s:{id:S.dealId},Hire_Start_Date__s:S.startDate,Hire_End_Date__s:S.endDate,Booking_Status__s:status,Booking_Name__s:name,Total_Hire_Cost__s:q.hireCost,Hire_Duration_Days__s:q.days});
+  setTimeout(()=>goStep(4),1800);
+}
+
+// ── Deal Bookings ──────────────────────────────────────────────────
+async function loadDealBookings(){
+  const all=await crmGetAll('Hire_Bookings');
+  S.dealBookings=all.filter(b=>{const did=b.Deal__s?.id||b.Deal__s;return did===S.dealId;});
+  renderDealBookings();
+}
+
+function renderDealBookings(){
+  const el=document.getElementById('bookingsTable');
+  if(!S.dealBookings.length){
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div>No bookings yet.<br><br><button class="btn btn-primary" onclick="goStep(1)">+ Book Equipment</button></div>`;return;
+  }
+  const bc=(s)=>({'Confirmed':'badge-confirmed','On Hold':'badge-hold','Enquiry':'badge-enquiry','Cancelled':'badge-cancelled','Completed':'badge-completed'}[s]||'badge-enquiry');
+  el.innerHTML=`<table class="booking-table">
+    <thead><tr><th>Booking</th><th>Start</th><th>End</th><th>Days</th><th>Cost</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>${S.dealBookings.map(b=>`<tr>
+      <td>${b.Booking_Name__s||b.Name||'—'}</td>
+      <td>${b.Hire_Start_Date__s||'—'}</td><td>${b.Hire_End_Date__s||'—'}</td>
+      <td>${b.Hire_Duration_Days__s||'—'}</td>
+      <td>${b.Total_Hire_Cost__s?'£'+Number(b.Total_Hire_Cost__s).toFixed(2):'—'}</td>
+      <td><span class="badge ${bc(b.Booking_Status__s)}">${b.Booking_Status__s}</span></td>
+      <td>
+        ${b.Booking_Status__s==='On Hold'?`<button class="btn btn-primary" style="padding:4px 10px;font-size:11px" onclick="confirmB('${b.id}')">Confirm</button> `:''}
+        ${['On Hold','Enquiry','Confirmed'].includes(b.Booking_Status__s)?`<button class="btn btn-danger" style="padding:4px 10px;font-size:11px" onclick="cancelB('${b.id}')">Cancel</button>`:''}
+      </td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+async function confirmB(id){await crmUpdate('Hire_Bookings',id,{Booking_Status__s:'Confirmed'});showAlert('✅ Booking confirmed!','success');loadDealBookings();}
+async function cancelB(id){if(!confirm('Cancel this booking?'))return;await crmUpdate('Hire_Bookings',id,{Booking_Status__s:'Cancelled'});showAlert('Booking cancelled.','warning');loadDealBookings();}
+
+function showAlert(msg,type='info'){document.getElementById('alertArea').innerHTML=`<div class="alert alert-${type}">${msg}</div>`;setTimeout(clearAlert,6000);}
+function clearAlert(){document.getElementById('alertArea').innerHTML='';}
+</script>
+</body>
+</html>
