@@ -297,7 +297,7 @@ window.addEventListener("load", async () => {
   if (_urlDealId) {
     S.dealId = _urlDealId;
     S.dealName = _urlDealName || 'This Deal';
-    S.sdkReady = false;
+    S.sdkReady = true;
     console.log('URL mode - Deal:', S.dealId, S.dealName);
   } else {
     try {
@@ -320,9 +320,15 @@ window.addEventListener("load", async () => {
 // ── CRM API ────────────────────────────────────────────────────────
 async function callFunction(params) {
   try {
-    const resp = await ZOHO.CRM.FUNCTIONS.execute('hire_management_api', {arguments: JSON.stringify(params)});
-    console.log('Function response:', resp);
-    const raw = resp?.details?.output || resp?.output || '{}';
+    const url = 'https://www.zohoapis.com.au/crm/v7/functions/hire_management_api/actions/execute?auth_type=apikey&zapikey=1003.41e4c5e9ba00bc30796986a232ba69d6.bfd8f262d71c4c497fe930ae12869a26';
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({arguments: JSON.stringify(params)})
+    });
+    const data = await resp.json();
+    console.log('Function response:', data);
+    const raw = data?.details?.output || data?.output || '{}';
     return JSON.parse(raw);
   } catch(e) {
     console.warn('Function call failed:', e);
