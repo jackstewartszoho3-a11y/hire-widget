@@ -663,11 +663,8 @@ async function placeBooking(status){
 // ── Deal Bookings ──────────────────────────────────────────────────
 async function loadDealBookings(){
   const all=await crmGetAll('Hire_Bookings');
-  // Filter by deal ID - handle both object and string formats
-  S.dealBookings = all.filter(b=>{
-    const did = b.Deal__s?.id || b.Deal__s?.ID || b.Deal__s;
-    return String(did) === String(S.dealId) || S.dealId === 'DEMO';
-  });
+  // Function already filters by dealId server-side, just use all returned records
+  S.dealBookings = all;
   renderDealBookings();
 }
 
