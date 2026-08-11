@@ -477,7 +477,7 @@ async function selectProd(id) {
   renderProducts();
   try {
     const allBookings = await crmGetProductBookings(id);
-    S.bookings = (allBookings||[]).filter(b=>['Confirmed','On Hold'].includes(b.Booking_Status__s));
+    S.bookings = (allBookings||[]).filter(b=>['Confirmed','On Hold'].includes(b.Booking_Status));
   } catch(e) { S.bookings = []; }
   try {
     S.rates = await crmGetRates(id) || [];
@@ -527,8 +527,8 @@ function renderCal(){
 
 function dateStatus(ds){
   for(const b of S.bookings){
-    if(ds>=b.Hire_Start_Date__s&&ds<=b.Hire_End_Date__s)
-      return b.Booking_Status__s==='On Hold'?'hold':'booked';
+    if(ds>=b.Hire_Start_Date&&ds<=b.Hire_End_Date)
+      return b.Booking_Status==='On Hold'?'hold':'booked';
   }
   return 'free';
 }
@@ -574,12 +574,12 @@ function calcQuote(){
   if(!p||!S.startDate||!S.endDate) return;
   const days = daysBetween(S.startDate,S.endDate);
   let hireCost=0, tier='';
-  const sorted = [...S.rates].sort((a,b)=>(b.Min_Days__s||0)-(a.Min_Days__s||0));
-  const matched = sorted.find(r=>days>=(r.Min_Days__s||0));
+  const sorted = [...S.rates].sort((a,b)=>(b.Min_Days||0)-(a.Min_Days||0));
+  const matched = sorted.find(r=>days>=(r.Min_Days||0));
   if(matched){
-    if(matched.Rate_Type__s==='Monthly'){const m=Math.ceil(days/30);hireCost=m*matched.Rate_Amount__s;tier=`${m} month${m!==1?'s':''} @ ${fmt(matched.Rate_Amount__s)}/mo`;}
-    else if(matched.Rate_Type__s==='Weekly'){const w=Math.ceil(days/7);hireCost=w*matched.Rate_Amount__s;tier=`${w} week${w!==1?'s':''} @ ${fmt(matched.Rate_Amount__s)}/wk`;}
-    else{hireCost=days*matched.Rate_Amount__s;tier=`${days} days @ ${fmt(matched.Rate_Amount__s)}/day`;}
+    if(matched.Rate_Type==='Monthly'){const m=Math.ceil(days/30);hireCost=m*matched.Rate_Amount;tier=`${m} month${m!==1?'s':''} @ ${fmt(matched.Rate_Amount)}/mo`;}
+    else if(matched.Rate_Type==='Weekly'){const w=Math.ceil(days/7);hireCost=w*matched.Rate_Amount;tier=`${w} week${w!==1?'s':''} @ ${fmt(matched.Rate_Amount)}/wk`;}
+    else{hireCost=days*matched.Rate_Amount;tier=`${days} days @ ${fmt(matched.Rate_Amount)}/day`;}
   } else {
     if(days>=28&&fld(p,'Monthly_Rate')){const m=Math.ceil(days/30);hireCost=m*fld(p,'Monthly_Rate');tier=`${m} month${m!==1?'s':''} @ ${fmt(fld(p,'Monthly_Rate'))}/mo`;}
     else if(days>=7&&fld(p,'Weekly_Rate')){const w=Math.ceil(days/7);hireCost=w*fld(p,'Weekly_Rate');tier=`${w} week${w!==1?'s':''} @ ${fmt(fld(p,'Weekly_Rate'))}/wk`;}
@@ -694,14 +694,14 @@ function renderDealBookings(){
   el.innerHTML=`<table class="booking-table">
     <thead><tr><th>Booking</th><th>Start</th><th>End</th><th>Days</th><th>Cost (AUD)</th><th>Status</th><th>Actions</th></tr></thead>
     <tbody>${S.dealBookings.map(b=>`<tr>
-      <td>${b.Booking_Name__s||b.Name||'—'}</td>
-      <td>${b.Hire_Start_Date__s||'—'}</td><td>${b.Hire_End_Date__s||'—'}</td>
-      <td>${b.Hire_Duration_Days__s||'—'}</td>
-      <td>${b.Total_Hire_Cost__s?fmt(b.Total_Hire_Cost__s):'—'}</td>
-      <td><span class="badge ${bc(b.Booking_Status__s)}">${b.Booking_Status__s}</span></td>
+      <td>${b.Booking_Name||b.Name||'—'}</td>
+      <td>${b.Hire_Start_Date||'—'}</td><td>${b.Hire_End_Date||'—'}</td>
+      <td>${b.Hire_Duration_Days||'—'}</td>
+      <td>${b.Total_Hire_Cost?fmt(b.Total_Hire_Cost):'—'}</td>
+      <td><span class="badge ${bc(b.Booking_Status)}">${b.Booking_Status}</span></td>
       <td>
-        ${b.Booking_Status__s==='On Hold'?`<button class="btn btn-primary" style="padding:4px 10px;font-size:11px" onclick="confirmB('${b.id}')">Confirm</button> `:''}
-        ${['On Hold','Enquiry','Confirmed'].includes(b.Booking_Status__s)?`<button class="btn btn-danger" style="padding:4px 10px;font-size:11px" onclick="cancelB('${b.id}')">Cancel</button>`:''}
+        ${b.Booking_Status==='On Hold'?`<button class="btn btn-primary" style="padding:4px 10px;font-size:11px" onclick="confirmB('${b.id}')">Confirm</button> `:''}
+        ${['On Hold','Enquiry','Confirmed'].includes(b.Booking_Status)?`<button class="btn btn-danger" style="padding:4px 10px;font-size:11px" onclick="cancelB('${b.id}')">Cancel</button>`:''}
       </td>
     </tr>`).join('')}</tbody></table>`;
 }
