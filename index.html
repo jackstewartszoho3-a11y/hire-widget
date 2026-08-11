@@ -320,11 +320,14 @@ window.addEventListener("load", async () => {
 // ── CRM API ────────────────────────────────────────────────────────
 async function callFunction(params) {
   try {
+    // Rename action to actionType to avoid Deluge reserved word conflict
+    const p = {...params};
+    if (p.action) { p.actionType = p.action; delete p.action; }
     const url = 'https://spring-frog-027e.jackstewartszoho3.workers.dev/';
     const resp = await fetch(url, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(params)
+      body: JSON.stringify(p)
     });
     const data = await resp.json();
     console.log('Function response:', data);
