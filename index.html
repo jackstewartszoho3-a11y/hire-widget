@@ -432,7 +432,7 @@ function mockData(entity) {
 // ── Products ───────────────────────────────────────────────────────
 async function loadProducts() {
   const data = await crmGetAll('Products');
-  S.products = data.filter(p => (p.Hire_Enabled__s === true || p.Hire_Enabled === true) && p.Product_Name);
+  S.products = data.filter(p => p.Product_Name && (p.Hire_Enabled__s === true || p.Hire_Enabled === true));
   const cats = [...new Set(S.products.map(p=>fld(p,'Equipment_Category')).filter(Boolean))];
   const filtersEl = document.getElementById('catFilters');
   filtersEl.innerHTML = '<button class="filter-btn active" onclick="filterCat(\'all\',this)">All</button>';
