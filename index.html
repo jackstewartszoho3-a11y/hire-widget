@@ -286,6 +286,8 @@ const ICONS = {
 };
 
 const fmt = (n) => `$${Number(n).toFixed(2)}`;
+// Helper to get field value with or without __s suffix
+function fld(obj, name) { return obj[name + '__s'] ?? obj[name] ?? null; }
 
 // ── Init ───────────────────────────────────────────────────────────
 window.addEventListener("load", async () => {
@@ -382,7 +384,7 @@ async function crmCreate(entity, data) {
     const result = await callFunction({
       action: 'createBooking',
       dealId: S.dealId,
-      productId: data.Product__s?.id || data.Product__s,
+      productId: data.Product__s?.id || data.Product__s || S.selectedProd?.id,
       name: data.Booking_Name__s,
       startDate: data.Hire_Start_Date__s,
       endDate: data.Hire_End_Date__s,
@@ -430,8 +432,8 @@ function mockData(entity) {
 // ── Products ───────────────────────────────────────────────────────
 async function loadProducts() {
   const data = await crmGetAll('Products');
-  S.products = data.filter(p => p.Hire_Enabled__s !== false && p.Product_Name);
-  const cats = [...new Set(S.products.map(p=>p.Equipment_Category__s).filter(Boolean))];
+  S.products = data.filter(p => (p.Hire_Enabled__s === true || p.Hire_Enabled === true) && p.Product_Name);
+  const cats = [...new Set(S.products.map(p=>fld(p,'Equipment_Category')).filter(Boolean))];
   const filtersEl = document.getElementById('catFilters');
   filtersEl.innerHTML = '<button class="filter-btn active" onclick="filterCat(\'all\',this)">All</button>';
   cats.forEach(c => {
@@ -450,21 +452,21 @@ function filterCat(cat, btn) {
 
 function renderProducts() {
   const grid = document.getElementById('productGrid');
-  const list = S.filterCat==='all' ? S.products : S.products.filter(p=>p.Equipment_Category__s===S.filterCat);
+  const list = S.filterCat==='all' ? S.products : S.products.filter(p=>fld(p,'Equipment_Category')===S.filterCat);
   if(!list.length){grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--muted)">No equipment found.</div>';return;}
   grid.innerHTML = list.map(p=>{
-    const avail = p.Hire_Status__s || 'Available';
+    const avail = fld(p,'Hire_Status') || 'Available';
     const unavail = ['Hired Out','In Maintenance'].includes(avail);
     const dotCls = avail==='Available'?'dot-green':avail==='On Hold'?'dot-amber':'dot-red';
-    const icon = ICONS[p.Equipment_Category__s]||'⚕️';
+    const icon = ICONS[fld(p,'Equipment_Category')]||'⚕️';
     const sel = S.selectedProd?.id===p.id?'selected':'';
     const una = unavail?'unavailable':'';
     const click = unavail?'':'onclick="selectProd(\''+p.id+'\')"';
     return `<div class="product-card ${sel} ${una}" ${click}>
       <div class="product-icon">${icon}</div>
       <div class="product-name">${p.Product_Name}</div>
-      <div class="product-cat">${p.Equipment_Category__s||''}</div>
-      <div class="product-rate">from ${fmt(p.Daily_Rate__s||0)}/day</div>
+      <div class="product-cat">${fld(p,'Equipment_Category')||''}</div>
+      <div class="product-rate">from ${fmt(fld(p,'Daily_Rate')||0)}/day</div>
       <div style="margin-top:6px;font-size:11px;color:var(--muted)"><span class="status-dot ${dotCls}"></span>${avail}</div>
     </div>`;
   }).join('');
@@ -550,8 +552,8 @@ function onDatesChange(){
   S.delivery = document.getElementById('delivToggle').checked;
   document.getElementById('delivAddrWrap').style.display = S.delivery?'block':'none';
   const p = S.selectedProd;
-  document.getElementById('delivFeeLabel').textContent = S.delivery&&p?`+${fmt(p.Delivery_Fee__s)}`:'';
-  const min = p?.Min_Hire_Days__s||1;
+  document.getElementById('delivFeeLabel').textContent = S.delivery&&p?`+${fmt(fld(p,'Delivery_Fee'))}`:'';
+  const min = fld(p,'Min_Hire_Days')||1;
   document.getElementById('minNote').textContent = `⚠ Minimum hire: ${min} day${min!==1?'s':''}`;
   if(S.startDate&&S.endDate){
     const days = daysBetween(S.startDate,S.endDate);
@@ -579,12 +581,12 @@ function calcQuote(){
     else if(matched.Rate_Type__s==='Weekly'){const w=Math.ceil(days/7);hireCost=w*matched.Rate_Amount__s;tier=`${w} week${w!==1?'s':''} @ ${fmt(matched.Rate_Amount__s)}/wk`;}
     else{hireCost=days*matched.Rate_Amount__s;tier=`${days} days @ ${fmt(matched.Rate_Amount__s)}/day`;}
   } else {
-    if(days>=28&&p.Monthly_Rate__s){const m=Math.ceil(days/30);hireCost=m*p.Monthly_Rate__s;tier=`${m} month${m!==1?'s':''} @ ${fmt(p.Monthly_Rate__s)}/mo`;}
-    else if(days>=7&&p.Weekly_Rate__s){const w=Math.ceil(days/7);hireCost=w*p.Weekly_Rate__s;tier=`${w} week${w!==1?'s':''} @ ${fmt(p.Weekly_Rate__s)}/wk`;}
-    else{hireCost=days*(p.Daily_Rate__s||0);tier=`${days} days @ ${fmt(p.Daily_Rate__s)}/day`;}
+    if(days>=28&&fld(p,'Monthly_Rate')){const m=Math.ceil(days/30);hireCost=m*fld(p,'Monthly_Rate');tier=`${m} month${m!==1?'s':''} @ ${fmt(fld(p,'Monthly_Rate'))}/mo`;}
+    else if(days>=7&&fld(p,'Weekly_Rate')){const w=Math.ceil(days/7);hireCost=w*fld(p,'Weekly_Rate');tier=`${w} week${w!==1?'s':''} @ ${fmt(fld(p,'Weekly_Rate'))}/wk`;}
+    else{hireCost=days*(fld(p,'Daily_Rate')||0);tier=`${days} days @ ${fmt(fld(p,'Daily_Rate'))}/day`;}
   }
-  const deliv = S.delivery?(p.Delivery_Fee__s||0):0;
-  const dep = p.Deposit_Required__s||0;
+  const deliv = S.delivery?(fld(p,'Delivery_Fee')||0):0;
+  const dep = fld(p,'Deposit_Required')||0;
   S.quote = {days,hireCost,delivFee:deliv,deposit:dep,total:hireCost+deliv,tier};
 }
 
@@ -623,7 +625,7 @@ function renderSummary(){
     <div style="margin-bottom:12px;font-size:14px;font-weight:600;color:var(--navy)">${icon} ${p?.Product_Name}</div>
     <div><strong>Period:</strong> ${S.startDate} → ${S.endDate} (${q?.days} days)</div>
     <div><strong>Category:</strong> ${p?.Equipment_Category__s||'—'}</div>
-    <div><strong>Delivery:</strong> ${S.delivery?`Yes — ${fmt(p?.Delivery_Fee__s)}`:'No — client collection'}</div>
+    <div><strong>Delivery:</strong> ${S.delivery?`Yes — ${fmt(fld(p,'Delivery_Fee'))}`:'No — client collection'}</div>
     ${document.getElementById('delivAddr').value?`<div><strong>Deliver to:</strong> ${document.getElementById('delivAddr').value}</div>`:''}
     ${document.getElementById('specReqs').value?`<div><strong>Requirements:</strong> ${document.getElementById('specReqs').value}</div>`:''}`;
 }
