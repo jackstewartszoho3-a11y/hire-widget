@@ -343,7 +343,9 @@ async function crmGetAll(entity) {
   if (!S.sdkReady) return mockData(entity);
   try {
     const result = await callFunction({action, dealId: S.dealId});
-    if (result?.data?.length) return result.data;
+    let d = result?.data;
+    if (typeof d === 'string') { try { d = JSON.parse(d); } catch(e) {} }
+    if (Array.isArray(d) && d.length) return d;
     return mockData(entity);
   } catch(e) {
     console.warn('crmGetAll failed for', entity, e);
@@ -354,14 +356,20 @@ async function crmGetAll(entity) {
 async function crmGetProductBookings(productId) {
   try {
     const result = await callFunction({action: 'getProductBookings', productId, dealId: S.dealId});
-    return result?.data || [];
+    const d = result?.data;
+    if (Array.isArray(d)) return d;
+    if (typeof d === 'string') return JSON.parse(d);
+    return [];
   } catch(e) { return []; }
 }
 
 async function crmGetRates(productId) {
   try {
     const result = await callFunction({action: 'getRates', productId, dealId: S.dealId});
-    return result?.data || [];
+    const d = result?.data;
+    if (Array.isArray(d)) return d;
+    if (typeof d === 'string') return JSON.parse(d);
+    return [];
   } catch(e) { return []; }
 }
 
@@ -462,9 +470,13 @@ function renderProducts() {
 async function selectProd(id) {
   S.selectedProd = S.products.find(p=>p.id===id);
   renderProducts();
-  const allBookings = await crmGetProductBookings(id);
-  S.bookings = allBookings.filter(b=>['Confirmed','On Hold'].includes(b.Booking_Status__s));
-  S.rates = await crmGetRates(id);
+  try {
+    const allBookings = await crmGetProductBookings(id);
+    S.bookings = (allBookings||[]).filter(b=>['Confirmed','On Hold'].includes(b.Booking_Status__s));
+  } catch(e) { S.bookings = []; }
+  try {
+    S.rates = await crmGetRates(id) || [];
+  } catch(e) { S.rates = []; }
   goStep(2);
 }
 
