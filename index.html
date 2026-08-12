@@ -463,7 +463,7 @@ function mockData(entity) {
 // ── Products ───────────────────────────────────────────────────────
 async function loadProducts() {
   const data = await crmGetAll('Products');
-  S.products = data.filter(p => p.Product_Name && (p.Hire_Enabled__s === true || p.Hire_Enabled === true));
+  S.products = data.filter(p => p.Product_Name && (p.Hire_Enabled__s === true || p.Hire_Enabled === true) && !p.Is_Accessory);
   const cats = [...new Set(S.products.map(p=>fld(p,'Equipment_Category')).filter(Boolean))];
   const filtersEl = document.getElementById('catFilters');
   filtersEl.innerHTML = '<button class="filter-btn active" onclick="filterCat(\'all\',this)">All</button>';
@@ -542,7 +542,7 @@ function renderAccessories() {
   grid.innerHTML = S.accessories.map(a => {
     const accId = a.Accessory?.id || a.Accessory;
     const accName = a.Accessory?.name || a.Accessory?.Product_Name || 'Accessory';
-    const rate = a.Daily_Rate || 0;
+    const rate = a.Daily_Rate || (a.Accessory && a.Accessory.Daily_Rate) || 0;
     const sel = S.selectedAccessories.find(s=>s.id===accId) ? 'selected' : '';
     return `<div class="acc-card ${sel}" onclick="toggleAcc('${accId}','${accName}',${rate})">
       <input type="checkbox" ${sel?'checked':''} onclick="event.stopPropagation();toggleAcc('${accId}','${accName}',${rate})">
