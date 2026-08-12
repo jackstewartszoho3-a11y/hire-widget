@@ -508,12 +508,15 @@ async function selectProd(id) {
   try {
     S.rates = await crmGetRates(id) || [];
   } catch(e) { S.rates = []; }
-  // Load accessories from product subform
+  // Load full product record to get accessories subform
   S.accessories = [];
-  const prod = S.selectedProd;
-  if (prod && prod.Accessories && Array.isArray(prod.Accessories)) {
-    S.accessories = prod.Accessories.filter(a => a.Accessory && a.Accessory.id);
-  }
+  try {
+    const detail = await callFunction({actionType: 'getProductDetail', productId: id, dealId: S.dealId});
+    const fullProd = detail?.data;
+    if (fullProd && fullProd.Accessories && Array.isArray(fullProd.Accessories)) {
+      S.accessories = fullProd.Accessories.filter(a => a.Accessory && a.Accessory.id);
+    }
+  } catch(e) { console.warn('Could not load accessories:', e); }
   renderAccessories();
   goStep(2);
 }
