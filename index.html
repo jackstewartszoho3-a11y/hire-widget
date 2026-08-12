@@ -417,13 +417,13 @@ async function crmGetRates(productId) {
 async function crmCreate(entity, data) {
   if (entity !== 'Hire_Bookings') return null;
   try {
-    // data is already a flat params object ready for the function
-    const params = {actionType: 'createBooking', ...data};
     // Fill empty acc slots
+    const params = {...data};
     for(let i=1;i<=5;i++){
       if(!params[`acc${i}Id`]) params[`acc${i}Id`]='';
       if(!params[`acc${i}Rate`]) params[`acc${i}Rate`]='0';
     }
+    console.log('Sending to function:', params);
     const result = await callFunction(params);
     console.log('Create booking result:', result);
     return result;
@@ -522,7 +522,7 @@ async function selectProd(id) {
     }
   } catch(e) { console.warn('Could not load accessories:', e); }
   renderAccessories();
-  goStep(2);
+  // Don't auto-advance - user clicks Choose Dates button
 }
 
 function renderAccessories() {
@@ -747,8 +747,8 @@ async function placeBooking(status){
     accParams[`acc${i+1}Rate`] = String(a.rate);
   });
   const rec={
-    Name:name,
-    Booking_Name:name,
+    actionType:'createBooking',
+    name:name,
     productId:p.id,
     dealId:S.dealId,
     startDate:S.startDate,
@@ -763,6 +763,7 @@ async function placeBooking(status){
     deliveryFee:String(q.delivFee),
     bookingType:S.bookingType,
     holdExpiry:holdExpiry||'',
+    bookingId:'',
     ...accParams
   };
 
