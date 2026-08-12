@@ -118,6 +118,22 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 .note { font-size: 11px; color: var(--muted); margin-top: 4px; }
 .sdk-status { font-size: 10px; opacity: 0.5; margin-left: 8px; }
+.cal-day.buffer { background: #fff3e0; color: #e8a020; cursor: pointer; }
+.cal-day.buffer:hover { background: #ffe0b2; }
+.acc-section { margin-top: 16px; }
+.acc-section h4 { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+.acc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.acc-card { border: 2px solid var(--border); border-radius: var(--radius); padding: 12px; cursor: pointer; transition: all 0.15s; background: white; display: flex; align-items: center; gap: 10px; }
+.acc-card:hover { border-color: var(--teal); }
+.acc-card.selected { border-color: var(--teal); background: var(--teal-lt); }
+.acc-card input[type=checkbox] { accent-color: var(--teal); width: 16px; height: 16px; flex-shrink: 0; }
+.acc-name { font-weight: 600; font-size: 12px; }
+.acc-rate { font-size: 11px; color: var(--teal); }
+.booking-type-row { display: flex; gap: 12px; margin-top: 12px; }
+.btype-btn { flex: 1; padding: 10px; border: 2px solid var(--border); border-radius: var(--radius); cursor: pointer; font-size: 12px; font-weight: 600; text-align: center; background: white; color: var(--muted); transition: all 0.15s; }
+.btype-btn.active-client { border-color: var(--teal); background: var(--teal-lt); color: var(--teal); }
+.btype-btn.active-trial { border-color: #7c3aed; background: #f5f3ff; color: #7c3aed; }
+.badge-trial { background: #f5f3ff; color: #7c3aed; }
 </style>
 </head>
 <body>
@@ -153,6 +169,13 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
         </div>
       </div>
     </div>
+    <div class="card" id="accPanel" style="display:none">
+      <div class="card-head">🧩 Optional Accessories</div>
+      <div class="card-body">
+        <p class="note" style="margin-bottom:12px">Select any accessories to include with your hire. All are priced per day.</p>
+        <div class="acc-grid" id="accGrid"></div>
+      </div>
+    </div>
   </div>
 
   <!-- STEP 2 -->
@@ -171,6 +194,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
             <div class="legend">
               <div class="leg-item"><div class="leg-sw" style="background:var(--teal-lt)"></div>Available</div>
               <div class="leg-item"><div class="leg-sw" style="background:var(--teal)"></div>Selected</div>
+              <div class="leg-item"><div class="leg-sw" style="background:#fff3e0"></div>Buffer Period</div>
               <div class="leg-item"><div class="leg-sw" style="background:var(--hold-lt)"></div>On Hold</div>
               <div class="leg-item"><div class="leg-sw" style="background:#fce8e6"></div>Booked</div>
             </div>
@@ -229,6 +253,13 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
           <div class="card-body">
             <div id="summaryDetails" style="font-size:13px;line-height:1.8;color:var(--muted)"></div>
             <hr>
+            <div style="margin-bottom:16px">
+              <div class="field-group" style="margin-bottom:6px"><label>Booking Type</label></div>
+              <div class="booking-type-row">
+                <button class="btype-btn active-client" id="btnTypeClient" onclick="setBookingType('Client Booking')">👤 Client Booking</button>
+                <button class="btype-btn" id="btnTypeTrial" onclick="setBookingType('Trial Booking')">🧪 Trial Booking</button>
+              </div>
+            </div>
             <div class="action-box action-confirm">
               <h4>✅ Confirm Full Booking</h4>
               <p style="font-size:12px;color:var(--teal);margin-bottom:10px">Creates a confirmed booking linked to this Deal.</p>
@@ -275,7 +306,9 @@ const S = {
   bookings: [], dealBookings: [], rates: [],
   startDate: null, endDate: null,
   calYear: new Date().getFullYear(), calMonth: new Date().getMonth(),
-  filterCat: 'all', delivery: false, quote: null
+  filterCat: 'all', delivery: false, quote: null,
+  accessories: [], selectedAccessories: [],
+  bookingType: 'Client Booking'
 };
 
 const ICONS = {
@@ -381,22 +414,14 @@ async function crmGetRates(productId) {
 async function crmCreate(entity, data) {
   if (entity !== 'Hire_Bookings') return null;
   try {
-    const result = await callFunction({
-      action: 'createBooking',
-      dealId: S.dealId,
-      productId: data.Product__s?.id || data.Product__s || S.selectedProd?.id,
-      name: data.Booking_Name__s,
-      startDate: data.Hire_Start_Date__s,
-      endDate: data.Hire_End_Date__s,
-      days: String(data.Hire_Duration_Days__s),
-      status: data.Booking_Status__s,
-      hireCost: String(data.Total_Hire_Cost__s),
-      deposit: String(data.Deposit_Amount__s),
-      deliveryFee: String(data.Delivery_Fee_Charged__s),
-      delivery: String(data.Delivery_Required__s),
-      requirements: data.Special_Requirements__s || '',
-      holdExpiry: data.Hold_Expiry_Date__s || ''
-    });
+    // data is already a flat params object ready for the function
+    const params = {actionType: 'createBooking', ...data};
+    // Fill empty acc slots
+    for(let i=1;i<=5;i++){
+      if(!params[`acc${i}Id`]) params[`acc${i}Id`]='';
+      if(!params[`acc${i}Rate`]) params[`acc${i}Rate`]='0';
+    }
+    const result = await callFunction(params);
     console.log('Create booking result:', result);
     return result;
   } catch(e) {
@@ -474,6 +499,7 @@ function renderProducts() {
 
 async function selectProd(id) {
   S.selectedProd = S.products.find(p=>p.id===id);
+  S.selectedAccessories = [];
   renderProducts();
   try {
     const allBookings = await crmGetProductBookings(id);
@@ -482,7 +508,45 @@ async function selectProd(id) {
   try {
     S.rates = await crmGetRates(id) || [];
   } catch(e) { S.rates = []; }
+  // Load accessories from product subform
+  S.accessories = [];
+  const prod = S.selectedProd;
+  if (prod && prod.Accessories && Array.isArray(prod.Accessories)) {
+    S.accessories = prod.Accessories.filter(a => a.Accessory && a.Accessory.id);
+  }
+  renderAccessories();
   goStep(2);
+}
+
+function renderAccessories() {
+  const panel = document.getElementById('accPanel');
+  const grid = document.getElementById('accGrid');
+  if (!S.accessories.length) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  grid.innerHTML = S.accessories.map(a => {
+    const accId = a.Accessory?.id || a.Accessory;
+    const accName = a.Accessory?.name || a.Accessory?.Product_Name || 'Accessory';
+    const rate = a.Daily_Rate || 0;
+    const sel = S.selectedAccessories.find(s=>s.id===accId) ? 'selected' : '';
+    return `<div class="acc-card ${sel}" onclick="toggleAcc('${accId}','${accName}',${rate})">
+      <input type="checkbox" ${sel?'checked':''} onclick="event.stopPropagation();toggleAcc('${accId}','${accName}',${rate})">
+      <div><div class="acc-name">${accName}</div><div class="acc-rate">${fmt(rate)}/day</div></div>
+    </div>`;
+  }).join('');
+}
+
+function toggleAcc(id, name, rate) {
+  const idx = S.selectedAccessories.findIndex(a=>a.id===id);
+  if (idx >= 0) S.selectedAccessories.splice(idx, 1);
+  else S.selectedAccessories.push({id, name, rate: Number(rate)});
+  renderAccessories();
+  if (S.startDate && S.endDate) calcQuote();
+}
+
+function setBookingType(type) {
+  S.bookingType = type;
+  document.getElementById('btnTypeClient').className = 'btype-btn' + (type==='Client Booking'?' active-client':'');
+  document.getElementById('btnTypeTrial').className = 'btype-btn' + (type==='Trial Booking'?' active-trial':'');
 }
 
 // ── Calendar ───────────────────────────────────────────────────────
@@ -515,12 +579,16 @@ function renderCal(){
     if(isPast) cls+=' past';
     else if(bStatus==='booked') cls+=' booked';
     else if(bStatus==='hold') cls+=' on-hold';
+    else if(bStatus==='buffer') cls+=' buffer';
     else cls+=' avail';
     if(isStart||isEnd) cls+=' sel-start';
     if(inRange) cls+=' in-range';
     if(isToday) cls+=' today';
-    const clickable = !isPast&&bStatus==='free';
-    html+=`<div class="${cls}" ${clickable?`onclick="pickDate('${ds}')"`:''}>${d}</div>`;
+    const clickable = !isPast&&(bStatus==='free'||bStatus==='buffer');
+    const clickHandler = bStatus==='buffer'
+      ? `onclick="if(confirm('This date is within a 2-day buffer period of an existing booking. Continue anyway?'))pickDate('${ds}')"`
+      : `onclick="pickDate('${ds}')"`;
+    html+=`<div class="${cls}" ${clickable?clickHandler:''}>${d}</div>`;
   }
   grid.innerHTML=html;
 }
@@ -529,8 +597,18 @@ function dateStatus(ds){
   for(const b of S.bookings){
     if(ds>=b.Hire_Start_Date&&ds<=b.Hire_End_Date)
       return b.Booking_Status==='On Hold'?'hold':'booked';
+    // Buffer: 2 days before and after each booking
+    const bufStart = offsetDate(b.Hire_Start_Date,-2);
+    const bufEnd = offsetDate(b.Hire_End_Date,2);
+    if(ds>=bufStart&&ds<=bufEnd) return 'buffer';
   }
   return 'free';
+}
+
+function offsetDate(ds, days) {
+  const d = new Date(ds);
+  d.setDate(d.getDate() + days);
+  return toDS(d);
 }
 
 function pickDate(ds){
@@ -587,7 +665,9 @@ function calcQuote(){
   }
   const deliv = S.delivery?(fld(p,'Delivery_Fee')||0):0;
   const dep = fld(p,'Deposit_Required')||0;
-  S.quote = {days,hireCost,delivFee:deliv,deposit:dep,total:hireCost+deliv,tier};
+  // Add accessory costs
+  const accCost = S.selectedAccessories.reduce((sum,a)=>sum+(a.rate*days),0);
+  S.quote = {days,hireCost,delivFee:deliv,deposit:dep,accCost,total:hireCost+deliv+accCost,tier};
 }
 
 // ── Steps ──────────────────────────────────────────────────────────
@@ -608,8 +688,12 @@ function goStep(n){
 
 function renderQuote(){
   const q=S.quote;if(!q)return;
+  const accRows = S.selectedAccessories.map(a=>
+    `<div class="quote-row"><span class="quote-label" style="padding-left:12px">↳ ${a.name}</span><span>${fmt(a.rate*q.days)}</span></div>`
+  ).join('');
   document.getElementById('quoteLines').innerHTML=`
     <div class="quote-row"><span class="quote-label">Equipment hire</span><div><div class="quote-total">${fmt(q.hireCost)}</div><div class="quote-tier">${q.tier}</div></div></div>
+    ${q.accCost>0?`<div class="quote-row"><span class="quote-label">Accessories (${S.selectedAccessories.length})</span><span>${fmt(q.accCost)}</span></div>${accRows}`:''}
     ${q.delivFee?`<div class="quote-row"><span class="quote-label">Delivery &amp; collection</span><span>${fmt(q.delivFee)}</span></div>`:''}
     <div class="quote-row"><span class="quote-label">Refundable deposit</span><span>${fmt(q.deposit)}</span></div>
     <div class="quote-row" style="margin-top:8px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.3)">
@@ -620,14 +704,19 @@ function renderQuote(){
 
 function renderSummary(){
   const p=S.selectedProd;const q=S.quote;
-  const icon=ICONS[p?.Equipment_Category__s]||'⚕️';
+  const icon=ICONS[fld(p,'Equipment_Category')]||'⚕️';
+  const accSummary = S.selectedAccessories.length
+    ? `<div><strong>Accessories:</strong> ${S.selectedAccessories.map(a=>a.name).join(', ')}</div>` : '';
+  const trialBadge = S.bookingType==='Trial Booking'
+    ? `<span style="background:#f5f3ff;color:#7c3aed;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">🧪 Trial</span>` : '';
   document.getElementById('summaryDetails').innerHTML=`
-    <div style="margin-bottom:12px;font-size:14px;font-weight:600;color:var(--navy)">${icon} ${p?.Product_Name}</div>
+    <div style="margin-bottom:8px;display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--navy)">${icon} ${p?.Product_Name} ${trialBadge}</div>
     <div><strong>Period:</strong> ${S.startDate} → ${S.endDate} (${q?.days} days)</div>
-    <div><strong>Category:</strong> ${p?.Equipment_Category__s||'—'}</div>
+    <div><strong>Category:</strong> ${fld(p,'Equipment_Category')||'—'}</div>
     <div><strong>Delivery:</strong> ${S.delivery?`Yes — ${fmt(fld(p,'Delivery_Fee'))}`:'No — client collection'}</div>
     ${document.getElementById('delivAddr').value?`<div><strong>Deliver to:</strong> ${document.getElementById('delivAddr').value}</div>`:''}
-    ${document.getElementById('specReqs').value?`<div><strong>Requirements:</strong> ${document.getElementById('specReqs').value}</div>`:''}`;
+    ${document.getElementById('specReqs').value?`<div><strong>Requirements:</strong> ${document.getElementById('specReqs').value}</div>`:''}
+    ${accSummary}`;
 }
 
 // ── Booking ────────────────────────────────────────────────────────
@@ -638,22 +727,30 @@ async function placeBooking(status){
   btn.innerHTML=`<span class="loader"></span> Saving...`;btn.disabled=true;
   const holdExpiry=status==='On Hold'?toDS(new Date(Date.now()+3*86400000)):null;
   const name=`${p.Product_Name} | ${S.dealName} | ${S.startDate}`;
+  // Build accessory params (up to 5)
+  const accParams = {};
+  S.selectedAccessories.slice(0,5).forEach((a,i)=>{
+    accParams[`acc${i+1}Id`] = a.id;
+    accParams[`acc${i+1}Rate`] = String(a.rate);
+  });
   const rec={
     Name:name,
-    Booking_Name__s:name,
-    Product__s:{id:p.id},
-    Deal__s:{id:S.dealId},
-    Hire_Start_Date__s:S.startDate,
-    Hire_End_Date__s:S.endDate,
-    Hire_Duration_Days__s:q.days,
-    Booking_Status__s:status,
-    Delivery_Required__s:S.delivery,
-    Delivery_Address__s:document.getElementById('delivAddr').value||'',
-    Special_Requirements__s:document.getElementById('specReqs').value||'',
-    Total_Hire_Cost__s:q.hireCost,
-    Deposit_Amount__s:q.deposit,
-    Delivery_Fee_Charged__s:q.delivFee,
-    ...(holdExpiry?{Hold_Expiry_Date__s:holdExpiry}:{})
+    Booking_Name:name,
+    productId:p.id,
+    dealId:S.dealId,
+    startDate:S.startDate,
+    endDate:S.endDate,
+    days:String(q.days),
+    status:status,
+    delivery:String(S.delivery),
+    deliveryAddr:document.getElementById('delivAddr').value||'',
+    requirements:document.getElementById('specReqs').value||'',
+    hireCost:String(q.total),
+    deposit:String(q.deposit),
+    deliveryFee:String(q.delivFee),
+    bookingType:S.bookingType,
+    holdExpiry:holdExpiry||'',
+    ...accParams
   };
 
   const result = await crmCreate('Hire_Bookings', rec);
@@ -698,7 +795,7 @@ function renderDealBookings(){
       <td>${b.Hire_Start_Date||'—'}</td><td>${b.Hire_End_Date||'—'}</td>
       <td>${b.Hire_Duration_Days||'—'}</td>
       <td>${b.Total_Hire_Cost?fmt(b.Total_Hire_Cost):'—'}</td>
-      <td><span class="badge ${bc(b.Booking_Status)}">${b.Booking_Status}</span></td>
+      <td><span class="badge ${bc(b.Booking_Status)}">${b.Booking_Status}</span>${b.Booking_Type==='Trial Booking'?' <span class="badge badge-trial">Trial</span>':''}</td>
       <td>
         ${b.Booking_Status==='On Hold'?`<button class="btn btn-primary" style="padding:4px 10px;font-size:11px" onclick="confirmB('${b.id}')">Confirm</button> `:''}
         ${['On Hold','Enquiry','Confirmed'].includes(b.Booking_Status)?`<button class="btn btn-danger" style="padding:4px 10px;font-size:11px" onclick="cancelB('${b.id}')">Cancel</button>`:''}
