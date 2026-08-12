@@ -295,7 +295,10 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
     <div class="card">
       <div class="card-head">
         📋 Hire Bookings for This Deal
-        <button class="btn btn-primary" onclick="goStep(1)" style="margin-left:auto;padding:6px 14px;font-size:12px">+ New Booking</button>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="returnToDeal()" style="padding:6px 14px;font-size:12px">← Return to Deal</button>
+          <button class="btn btn-primary" onclick="goStep(1)" style="padding:6px 14px;font-size:12px">+ New Booking</button>
+        </div>
       </div>
       <div class="card-body" style="padding:0" id="bookingsTable"></div>
     </div>
@@ -819,6 +822,11 @@ function renderDealBookings(){
 
 async function confirmB(id){await crmUpdate('Hire_Bookings',id,{Booking_Status__s:'Confirmed'});showAlert('✅ Booking confirmed!','success');loadDealBookings();}
 async function cancelB(id){if(!confirm('Cancel this booking?'))return;await crmUpdate('Hire_Bookings',id,{Booking_Status__s:'Cancelled'});showAlert('Booking cancelled.','warning');loadDealBookings();}
+
+function returnToDeal() {
+  const orgId = '7004175223';
+  window.location.href = `https://crm.zoho.com.au/crm/org${orgId}/tab/Potentials/${S.dealId}`;
+}
 
 function showAlert(msg,type='info'){document.getElementById('alertArea').innerHTML=`<div class="alert alert-${type}">${msg}</div>`;setTimeout(clearAlert,6000);}
 function clearAlert(){document.getElementById('alertArea').innerHTML='';}
