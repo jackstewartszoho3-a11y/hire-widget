@@ -176,6 +176,9 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
         <div class="acc-grid" id="accGrid"></div>
       </div>
     </div>
+    <div id="nextDateBtn" style="display:none;text-align:right;margin-top:4px">
+      <button class="btn btn-primary" onclick="goStep(2)">Choose Dates →</button>
+    </div>
   </div>
 
   <!-- STEP 2 -->
@@ -500,6 +503,7 @@ function renderProducts() {
 async function selectProd(id) {
   S.selectedProd = S.products.find(p=>p.id===id);
   S.selectedAccessories = [];
+  document.getElementById('nextDateBtn').style.display = '';
   renderProducts();
   try {
     const allBookings = await crmGetProductBookings(id);
@@ -524,8 +528,14 @@ async function selectProd(id) {
 function renderAccessories() {
   const panel = document.getElementById('accPanel');
   const grid = document.getElementById('accGrid');
-  if (!S.accessories.length) { panel.style.display = 'none'; return; }
+  const nextBtn = document.getElementById('nextDateBtn');
+  if (!S.accessories.length) { 
+    panel.style.display = 'none';
+    nextBtn.style.display = S.selectedProd ? '' : 'none';
+    return; 
+  }
   panel.style.display = '';
+  nextBtn.style.display = '';
   grid.innerHTML = S.accessories.map(a => {
     const accId = a.Accessory?.id || a.Accessory;
     const accName = a.Accessory?.name || a.Accessory?.Product_Name || 'Accessory';
