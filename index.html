@@ -1481,6 +1481,21 @@ body:before{
   background:linear-gradient(135deg,#5B2EE8,#6D3DF5)!important;
 }
 
+
+
+/* V3.2 — delivery control readability */
+#panel2 .toggle-row{
+  color:#4F5F73!important;
+}
+#panel2 .toggle-row > span:not(.toggle-slider){
+  color:#4F5F73!important;
+  font-size:12px!important;
+  font-weight:650!important;
+}
+#panel2 .toggle-row .toggle{
+  flex:0 0 auto!important;
+}
+
 </style>
 </head>
 <body>
@@ -1577,7 +1592,7 @@ const S={dealId:null,dealName:'This Deal',sdkReady:false,contact:null,products:[
 const WORKER='https://spring-frog-027e.jackstewartszoho3.workers.dev/';
 const ORG_ID='7004175223';
 const BOOKING_MODULE_PATH='CustomModule60';
-const INTERNAL_WIDGET_BUILD='2026-08-19-internal-hire-v3.1-glass-grey';
+const INTERNAL_WIDGET_BUILD='2026-08-19-internal-hire-v3.2-glass-grey-delivery-label';
 console.log('Internal hire widget build:',INTERNAL_WIDGET_BUILD);
 
 const UI_ICONS={mobility:`<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="9" cy="5" r="2"/><path d="M9 8v5h5l2 4h3M9 11H6a5 5 0 1 0 5 5M14 8h3"/></svg>`,wheelchair:`<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="9" cy="5" r="2"/><path d="M9 8v5h5l2 4h3M9 11H6a5 5 0 1 0 5 5M14 8h3"/></svg>`,scooter:`<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 18h6L12 9H8l-2 5M12 9h5l2-4"/></svg>`,bed:`<svg class="icon-svg" viewBox="0 0 24 24"><path d="M3 18V8M21 18v-6a3 3 0 0 0-3-3h-7v9M3 13h8M3 18h18"/><rect x="4" y="7" width="5" height="4" rx="1"/></svg>`,walker:`<svg class="icon-svg" viewBox="0 0 24 24"><path d="M7 5h10M8 5 6 19M16 5l2 14M6 13h12M6 19h2M16 19h2"/></svg>`,lift:`<svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 19h5v-4h5v-4h6"/><path d="M14 6h5v5M12 6l3 3"/><circle cx="8" cy="8" r="2"/></svg>`,bath:`<svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 12h16v4a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4zM7 12V7a3 3 0 0 1 6 0"/><path d="M8 20v2M16 20v2"/></svg>`,checkSmall:`<svg class="icon-svg sm" viewBox="0 0 24 24"><path d="m7 12 3 3 7-7"/></svg>`};
