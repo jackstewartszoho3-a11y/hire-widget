@@ -270,6 +270,149 @@ body{background:radial-gradient(circle at 75% 5%,#102548 0,#071426 28%,#050d18 7
 @media(max-width:1120px){#panel2 .two-col,#panel3 .two-col{grid-template-columns:1fr!important}.booking-action-grid{grid-template-columns:1fr 1fr}.cal-grid{grid-template-columns:repeat(7,minmax(40px,54px))!important}}
 @media(max-width:700px){.booking-action-grid{grid-template-columns:1fr!important}.quote-summary-row{grid-template-columns:100px minmax(0,1fr)}#panel2 .cal-grid{grid-template-columns:repeat(7,minmax(34px,1fr))!important;gap:4px!important}#panel2 .cal-day{height:40px!important}}
 
+
+
+/* ================================================================
+   INTERNAL HIRE V2.4 — photo centering + brand controls
+   ================================================================ */
+:root{
+  --product-photo-bg:#f4f6f8;
+}
+
+/* CRM product photography: one consistent neutral canvas, centred with breathing room. */
+.v2-product-media,
+.quote-summary-media,
+.success-product{
+  background:var(--product-photo-bg)!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  overflow:hidden!important;
+}
+.v2-product-media{
+  height:136px!important;
+  padding:14px 16px!important;
+}
+.v2-product-media img,
+.quote-summary-media img,
+.success-product img,
+.summary-icon img,
+.acc-generic img{
+  width:auto!important;
+  height:auto!important;
+  object-fit:contain!important;
+  object-position:50% 45%!important;
+  display:block!important;
+  margin:auto!important;
+  padding:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  mix-blend-mode:multiply;
+}
+.v2-product-media img{
+  max-width:74%!important;
+  max-height:76%!important;
+}
+.quote-summary-media img{
+  max-width:72%!important;
+  max-height:72%!important;
+}
+.success-product img{
+  max-width:70%!important;
+  max-height:70%!important;
+}
+.summary-icon:has(img),
+.acc-generic:has(img){
+  background:var(--product-photo-bg)!important;
+  border:1px solid rgba(148,163,184,.16)!important;
+}
+.summary-icon img{
+  max-width:74%!important;
+  max-height:74%!important;
+}
+.acc-generic img{
+  max-width:72%!important;
+  max-height:72%!important;
+}
+
+/* Accessory checkbox: custom violet glass control rather than browser default. */
+.acc-card input[type="checkbox"]{
+  -webkit-appearance:none!important;
+  appearance:none!important;
+  width:17px!important;
+  height:17px!important;
+  min-width:17px!important;
+  border-radius:5px!important;
+  border:1px solid rgba(167,139,250,.62)!important;
+  background:#09182b!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04)!important;
+  position:relative!important;
+  cursor:pointer!important;
+  margin-top:2px!important;
+}
+.acc-card input[type="checkbox"]:hover{
+  border-color:#a78bfa!important;
+  box-shadow:0 0 0 3px rgba(139,92,246,.10)!important;
+}
+.acc-card input[type="checkbox"]:checked{
+  background:linear-gradient(135deg,#6d3df5,#8b5cf6)!important;
+  border-color:#a78bfa!important;
+  box-shadow:0 0 14px rgba(139,92,246,.24)!important;
+}
+.acc-card input[type="checkbox"]:checked::after{
+  content:"";
+  position:absolute;
+  left:5px;
+  top:2px;
+  width:4px;
+  height:8px;
+  border:solid #fff;
+  border-width:0 2px 2px 0;
+  transform:rotate(45deg);
+}
+
+/* Validation / warning messages use the same dark-violet brand language. */
+.alert-warning{
+  color:#ddd6fe!important;
+  background:
+    radial-gradient(circle at 92% 20%,rgba(139,92,246,.14),transparent 28%),
+    linear-gradient(135deg,rgba(109,61,245,.12),rgba(8,24,43,.94))!important;
+  border:1px solid rgba(139,92,246,.34)!important;
+  border-radius:11px!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 10px 28px rgba(0,0,0,.12)!important;
+  font-weight:600!important;
+}
+.alert-warning::before{
+  content:"!";
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  flex:0 0 18px;
+  background:rgba(139,92,246,.20);
+  border:1px solid rgba(167,139,250,.42);
+  color:#c4b5fd;
+  font-size:11px;
+  font-weight:800;
+}
+#minNote{
+  margin-top:8px!important;
+  padding:7px 9px!important;
+  border-radius:8px!important;
+  color:#aebbd0!important;
+  background:rgba(109,61,245,.055)!important;
+  border:1px solid rgba(139,92,246,.15)!important;
+  line-height:1.35!important;
+}
+
+/* The success image should read as a deliberate product tile, not a cropped photo strip. */
+.success-product{
+  height:132px!important;
+  padding:15px!important;
+  border:1px solid rgba(148,163,184,.18)!important;
+}
+
 </style>
 </head>
 <body>
@@ -366,7 +509,7 @@ const S={dealId:null,dealName:'This Deal',sdkReady:false,contact:null,products:[
 const WORKER='https://spring-frog-027e.jackstewartszoho3.workers.dev/';
 const ORG_ID='7004175223';
 const BOOKING_MODULE_PATH='CustomModule60';
-const INTERNAL_WIDGET_BUILD='2026-08-19-internal-hire-v2.3-custommodule60-fix';
+const INTERNAL_WIDGET_BUILD='2026-08-19-internal-hire-v2.4-photo-checkbox-alert-polish';
 console.log('Internal hire widget build:',INTERNAL_WIDGET_BUILD);
 
 const UI_ICONS={mobility:`<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="9" cy="5" r="2"/><path d="M9 8v5h5l2 4h3M9 11H6a5 5 0 1 0 5 5M14 8h3"/></svg>`,wheelchair:`<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="9" cy="5" r="2"/><path d="M9 8v5h5l2 4h3M9 11H6a5 5 0 1 0 5 5M14 8h3"/></svg>`,scooter:`<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 18h6L12 9H8l-2 5M12 9h5l2-4"/></svg>`,bed:`<svg class="icon-svg" viewBox="0 0 24 24"><path d="M3 18V8M21 18v-6a3 3 0 0 0-3-3h-7v9M3 13h8M3 18h18"/><rect x="4" y="7" width="5" height="4" rx="1"/></svg>`,walker:`<svg class="icon-svg" viewBox="0 0 24 24"><path d="M7 5h10M8 5 6 19M16 5l2 14M6 13h12M6 19h2M16 19h2"/></svg>`,lift:`<svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 19h5v-4h5v-4h6"/><path d="M14 6h5v5M12 6l3 3"/><circle cx="8" cy="8" r="2"/></svg>`,bath:`<svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 12h16v4a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4zM7 12V7a3 3 0 0 1 6 0"/><path d="M8 20v2M16 20v2"/></svg>`,checkSmall:`<svg class="icon-svg sm" viewBox="0 0 24 24"><path d="m7 12 3 3 7-7"/></svg>`};
